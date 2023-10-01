@@ -1,0 +1,12 @@
+api:
+  addr: 0.0.0.0
+  port: 80
+  shutdown-timeout: 3s
+
+sqlite:
+  cnn-url: sqlite://realworld-poem-backend.db
+
+token-factory:
+  # key: NO SECRETS HERE!!
+  token-expiry: 1h
+  time-tolerance: 1m
