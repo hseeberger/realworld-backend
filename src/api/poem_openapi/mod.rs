@@ -1,7 +1,7 @@
 mod user;
 
 use self::user::UserApi;
-use crate::{domain::user::UserRepository, infra::token_factory::TokenFactory};
+use crate::{api::Config, domain::user::UserRepository, infra::token_factory::TokenFactory};
 use anyhow::{Context, Result};
 use futures::FutureExt;
 use poem::{
@@ -12,53 +12,34 @@ use poem::{
     EndpointExt, Route, Server,
 };
 use poem_openapi::{Object, OpenApiService, Tags};
-use serde::Deserialize;
-use std::{fmt::Display, net::IpAddr, time::Duration};
+use std::fmt::Display;
 use thiserror::Error;
 use tokio::signal::unix::{signal, SignalKind};
-use url::Url;
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct Config {
-    addr: IpAddr,
-    port: u16,
-    #[serde(with = "humantime_serde")]
-    shutdown_timeout: Option<Duration>,
-    base_url: Option<Url>,
-}
-
-pub async fn serve(
-    config: Config,
-    user_repository: impl UserRepository,
-    token_factory: TokenFactory,
-) -> Result<()> {
+#[allow(dead_code)]
+pub async fn serve<U>(config: Config, user_repository: U, token_factory: TokenFactory) -> Result<()>
+where
+    U: UserRepository,
+{
     let Config {
         addr,
         port,
         shutdown_timeout,
-        base_url,
     } = config;
 
     let user_api = UserApi::new(user_repository, token_factory);
-    let base_url = base_url.unwrap_or(
-        format!("http://localhost:{port}/api")
-            .parse()
-            .context("parse base url")?,
-    );
-    let api =
-        OpenApiService::new(user_api, "realworld-backend-poem-openapi", "0.1").server(base_url);
-
-    let cors = Cors::new()
-        .allow_method(Method::GET)
-        .allow_method(Method::POST);
+    let api = OpenApiService::new(user_api, "realworld-backend-poem-openapi", "0.1");
 
     let app = Route::new()
         .nest("/", ready)
         .nest("/api-doc", api.swagger_ui())
         .nest("/api-spec", api.spec_endpoint())
         .nest("/api", api)
-        .with(cors);
+        .with(
+            Cors::new()
+                .allow_method(Method::GET)
+                .allow_method(Method::POST),
+        );
 
     Server::new(TcpListener::bind((addr, port)))
         .run_with_graceful_shutdown(
@@ -77,11 +58,6 @@ pub async fn serve(
 enum ApiTag {
     /// Users and authentication.
     User,
-}
-
-#[handler]
-fn ready() -> StatusCode {
-    StatusCode::OK
 }
 
 #[derive(Debug, Object)]
@@ -110,3 +86,8 @@ struct GenericErrorBody {
 #[derive(Debug, Error)]
 #[error("")]
 struct SilentError;
+
+#[handler]
+fn ready() -> StatusCode {
+    StatusCode::OK
+}

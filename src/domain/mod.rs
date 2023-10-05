@@ -7,15 +7,14 @@ use argon2::{
     Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
 };
 use email_address::EmailAddress;
+use secrecy::ExposeSecret;
+use serde::Deserialize;
 use thiserror::Error;
 use uuid::Uuid;
 
 // =================================================================================================
 // Model                                                                                           =
 // =================================================================================================
-
-use secrecy::ExposeSecret;
-use serde::Deserialize;
 
 /// New type for `secrecy::SecretString`.
 #[derive(Debug, Clone, Deserialize)]
@@ -30,6 +29,12 @@ impl SecretString {
 impl From<String> for SecretString {
     fn from(s: String) -> Self {
         Self(secrecy::SecretString::new(s))
+    }
+}
+
+impl From<&str> for SecretString {
+    fn from(s: &str) -> Self {
+        s.to_owned().into()
     }
 }
 
@@ -80,7 +85,7 @@ pub enum RegisterUserError<E> {
     UsernameTaken,
 
     #[error(transparent)]
-    UserRepositoryError(E),
+    UserRepository(E),
 
     #[error("{0}")]
     PasswordHash(password_hash::Error),
@@ -91,12 +96,12 @@ impl<E> From<AddUserError<E>> for RegisterUserError<E> {
         match error {
             AddUserError::EmailTaken => RegisterUserError::EmailTaken,
             AddUserError::UsernameTaken => RegisterUserError::UsernameTaken,
-            AddUserError::ImplError(error) => RegisterUserError::UserRepositoryError(error),
+            AddUserError::ImplError(error) => RegisterUserError::UserRepository(error),
         }
     }
 }
 
-pub async fn login_user<U>(
+pub async fn login<U>(
     user_repository: &U,
     email: &EmailAddress,
     password: &Password,

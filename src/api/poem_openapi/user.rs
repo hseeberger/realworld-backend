@@ -1,7 +1,7 @@
 use crate::{
-    api::{ApiTag, GenericError, SilentError},
+    api::poem_openapi::{ApiTag, GenericError, SilentError},
     domain::{
-        self, login_user, register_user, user::UserRepository, LoginUserError, RegisterUserError,
+        self, login, register_user, user::UserRepository, LoginUserError, RegisterUserError,
         SecretString,
     },
     infra::token_factory::TokenFactory,
@@ -41,14 +41,11 @@ where
         &self,
         Json(register_request): Json<RegisterUserRequest>,
     ) -> Result<RegisterUserResponse> {
-        let RegisterUserRequest {
-            user:
-                NewUser {
-                    username,
-                    email,
-                    password,
-                },
-        } = register_request;
+        let NewUser {
+            username,
+            email,
+            password,
+        } = register_request.user;
 
         let username = username
             .try_into()
@@ -67,7 +64,7 @@ where
                 Ok(token) => Ok(RegisterUserResponse::ok((user, token).into())),
 
                 Err(error) => {
-                    error!(?user, %error, "cannot register user");
+                    error!(?user, error = format!("{error:#}"), "cannot register user");
                     Err(InternalServerError(SilentError))
                 }
             },
@@ -79,7 +76,7 @@ where
             }
 
             Err(error) => {
-                error!(%error, "cannot register user");
+                error!(error = format!("{error:#}"), "cannot register user");
                 Err(InternalServerError(SilentError))
             }
         }
@@ -88,24 +85,21 @@ where
     /// Login for an existing user.
     #[oai(path = "/users/login", method = "post", tag = "ApiTag::User")]
     async fn login(&self, Json(login_request): Json<LoginRequest>) -> Result<LoginResponse> {
-        let LoginRequest {
-            user: Credentials { email, password },
-        } = login_request;
+        let Credentials { email, password } = login_request.user;
 
-        let email = email
-            .parse()
-            .map_err(RegisterUserResponse::unprocessable_entity)?;
+        let email = email.parse().map_err(LoginResponse::unprocessable_entity)?;
         let password = password
             .parse()
-            .map_err(RegisterUserResponse::unprocessable_entity)?;
-        let user = login_user(&self.user_repository, &email, &password).await;
+            .map_err(LoginResponse::unprocessable_entity)?;
+
+        let user = login(&self.user_repository, &email, &password).await;
 
         match user {
             Ok(user) => match self.token_factory.create_token(user.id()) {
                 Ok(token) => Ok(LoginResponse::ok((user, token).into())),
 
                 Err(error) => {
-                    error!(%email, %error, "cannot login user");
+                    error!(%email, error = format!("{error:#}"), "cannot login user");
                     Err(InternalServerError(SilentError))
                 }
             },
@@ -113,7 +107,7 @@ where
             Err(LoginUserError::InvalidCredentials) => Ok(LoginResponse::Unauthorized),
 
             Err(error) => {
-                error!(%email, %error, "cannot login user");
+                error!(%email, error = format!("{error:#}"), "cannot login user");
                 Err(InternalServerError(SilentError))
             }
         }
@@ -133,19 +127,19 @@ where
 
                     Ok(None) => {
                         let error = anyhow!("cannot find user for user ID {user_id}");
-                        error!(%user_id, %error, "cannot get current user");
+                        error!(%user_id, error = format!("{error:#}"), "cannot get current user");
                         Err(InternalServerError(SilentError))
                     }
 
                     Err(error) => {
-                        error!(%user_id, %error, "cannot get current user");
+                        error!(%user_id, error = format!("{error:#}"), "cannot get current user");
                         Err(InternalServerError(SilentError))
                     }
                 }
             }
 
             Err(error) => {
-                warn!(%error, "cannot verify token");
+                warn!(error = format!("{error:#}"), "cannot verify token");
                 Ok(GetCurrentUserResponse::Unauthorized)
             }
         }
