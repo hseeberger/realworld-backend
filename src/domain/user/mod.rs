@@ -2,6 +2,7 @@ use crate::domain::SecretString;
 use anyhow::Result;
 use email_address::EmailAddress;
 use regex::Regex;
+use serde::Deserialize;
 use std::{
     convert::Infallible,
     fmt::{self, Debug, Display},
@@ -179,7 +180,10 @@ static PASSWORD_SPECIAL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(password).expect("create regex for numeric password")
 });
 
-#[derive(Debug, Clone)]
+/// A password.
+#[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "axum", schema(value_type = String, format = Password, example = "***"))]
 pub struct Password(SecretString);
 
 impl Password {

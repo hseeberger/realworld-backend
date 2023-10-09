@@ -1,7 +1,11 @@
 use super::AppState;
 use crate::{
     api::axum::Error,
-    domain::{self, user::UserRepository, LoginUserError, RegisterUserError, SecretString},
+    domain::{
+        self,
+        user::{Password, UserRepository},
+        LoginUserError, RegisterUserError, SecretString,
+    },
 };
 use anyhow::anyhow;
 use axum::{
@@ -21,7 +25,7 @@ use uuid::Uuid;
 #[openapi(
     paths(register_user, login, get_current_user),
     components(
-        schemas(UserResponse, User, RegisterUserRequest, NewUser, LoginRequest, Credentials)
+        schemas(UserResponse, User, RegisterUserRequest, NewUser, LoginRequest, Credentials, Password)
     ),
     tags(
         (name = "user", description = "Users and authentication.")
@@ -56,7 +60,7 @@ impl From<(domain::user::User, SecretString)> for UserResponse {
 #[derive(Debug, Serialize, ToSchema)]
 struct User {
     username: String,
-    email: String, // TODO Use Email type!
+    email: String,
     token: String,
     bio: Option<String>,
 }
@@ -83,8 +87,8 @@ struct RegisterUserRequest {
 #[derive(Debug, Deserialize, ToSchema)]
 struct NewUser {
     username: String,
-    email: String,    // TODO Use Email type!
-    password: String, // TODO Use Password type!
+    email: String,
+    password: Password,
 }
 
 /// Request to login an existing user.
@@ -96,8 +100,8 @@ struct LoginRequest {
 /// Credentials to login an existing user.
 #[derive(Debug, Deserialize, ToSchema)]
 struct Credentials {
-    email: String,    // TODO Use Email type!
-    password: String, // TODO Use Password type!
+    email: String,
+    password: Password,
 }
 
 /// Register a new user.
@@ -128,9 +132,6 @@ where
         .try_into()
         .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
     let email = email
-        .parse()
-        .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
-    let password = password
         .parse()
         .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
 
@@ -179,9 +180,6 @@ where
     let Credentials { email, password } = login_request.user;
 
     let email = email
-        .parse()
-        .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
-    let password = password
         .parse()
         .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
 

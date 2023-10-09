@@ -9,10 +9,7 @@ use crate::{
 use anyhow::anyhow;
 use poem::{error::InternalServerError, Error, Result};
 use poem_openapi::{
-    auth::Bearer,
-    payload::Json,
-    types::{Email, Password},
-    ApiResponse, Object, OpenApi, SecurityScheme,
+    auth::Bearer, payload::Json, types::Email, ApiResponse, Object, OpenApi, SecurityScheme,
 };
 use std::{fmt::Display, str::FromStr};
 use tracing::{error, warn};
@@ -54,7 +51,7 @@ where
             .parse()
             .map_err(RegisterUserResponse::unprocessable_entity)?;
         let password = password
-            .parse()
+            .try_into()
             .map_err(RegisterUserResponse::unprocessable_entity)?;
 
         let user = register_user(&self.user_repository, username, email, password).await;
@@ -89,7 +86,7 @@ where
 
         let email = email.parse().map_err(LoginResponse::unprocessable_entity)?;
         let password = password
-            .parse()
+            .try_into()
             .map_err(LoginResponse::unprocessable_entity)?;
 
         let user = login(&self.user_repository, &email, &password).await;
@@ -157,7 +154,7 @@ struct RegisterUserRequest {
 struct NewUser {
     username: String,
     email: Email,
-    password: Password,
+    password: SecretString,
 }
 
 #[derive(Debug, ApiResponse)]
@@ -210,7 +207,7 @@ struct LoginRequest {
 #[derive(Debug, Object)]
 struct Credentials {
     email: Email,
-    password: Password,
+    password: SecretString,
 }
 
 #[derive(Debug, ApiResponse)]

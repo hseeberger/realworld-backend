@@ -4,7 +4,7 @@ api:
   shutdown-timeout: 3s
 
 sqlite:
-  cnn-url: sqlite://realworld-poem-backend.db
+  cnn-url: sqlite://realworld-backend.db
 
 token-factory:
   # key: NO SECRETS HERE!!

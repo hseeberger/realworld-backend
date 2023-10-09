@@ -1,5 +1,5 @@
 sqlite:
-  cnn-url: sqlite://target/realworld-poem-backend.db
+  cnn-url: sqlite://target/realworld-backend.db
 
 token-factory:
   key: rOQk6_5B_Xre7A6IDK0il0HPeeZJTAqFxOpaLSxeNFo=
