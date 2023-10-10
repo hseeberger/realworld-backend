@@ -12,20 +12,37 @@ use anyhow::{Context, Result};
 use configured::Configured;
 use infra::{sqlite_repository, token_factory};
 use serde::Deserialize;
+use serde_json::json;
+use std::panic;
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use tracing::{error, info};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 #[tokio::main]
 async fn main() {
+    // If tracing initialization fails, nevertheless emit a structured log event.
     if let Err(error) = init_tracing() {
-        eprintln!("realworld-backend exited with ERROR: {error}");
+        let now = OffsetDateTime::now_utc().format(&Rfc3339).unwrap();
+        let error = serde_json::to_string(&json!({
+            "timestamp": now,
+            "level": "ERROR",
+            "message": "process exited with ERROR",
+            "error": format!("{error:#}")
+        }));
+        // Not using `eprintln!`, because `tracing_subscriber::fmt` uses stdout by default.
+        println!("{}", error.unwrap());
+        return;
     }
 
-    if let Err(ref error) = run().await {
+    // Replace the default panic hook with one that uses structured logging at ERROR level.
+    panic::set_hook(Box::new(|panic| error!(%panic, "process panicked")));
+
+    // Run and log any error.
+    if let Err(error) = run().await {
         error!(
             error = format!("{error:#}"),
             backtrace = %error.backtrace(),
-            "realworld-backend exited with ERROR"
+            "process exited with ERROR"
         );
     };
 }
@@ -41,7 +58,7 @@ struct Config {
 fn init_tracing() -> Result<()> {
     tracing_subscriber::registry()
         .with(EnvFilter::from_default_env())
-        .with(fmt::layer().json())
+        .with(fmt::layer().json().flatten_event(true))
         .try_init()
         .context("initialize tracing subscriber")
 }
