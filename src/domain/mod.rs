@@ -19,6 +19,8 @@ use uuid::Uuid;
 
 /// New type for `secrecy::SecretString`.
 #[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "axum", schema(value_type = String, format = Password, example = "abcd567+"))]
 pub struct SecretString(secrecy::SecretString);
 
 impl SecretString {
@@ -60,9 +62,9 @@ impl poem_openapi::types::Type for SecretString {
     }
 
     fn schema_ref() -> poem_openapi::registry::MetaSchemaRef {
-        poem_openapi::registry::MetaSchemaRef::Inline(Box::new(
-            poem_openapi::registry::MetaSchema::new_with_format("string", "secret"),
-        ))
+        let mut schema = poem_openapi::registry::MetaSchema::new_with_format("string", "secret");
+        schema.example = Some(serde_json::Value::String("abcd567+".to_string()));
+        poem_openapi::registry::MetaSchemaRef::Inline(Box::new(schema))
     }
 
     fn as_raw_value(&self) -> Option<&Self::RawValueType> {

@@ -1,10 +1,6 @@
 use crate::{
     api::axum::{AppState, Error},
-    domain::{
-        self,
-        user::{Password, UserRepository},
-        LoginUserError, RegisterUserError, SecretString,
-    },
+    domain::{self, user::UserRepository, LoginUserError, RegisterUserError, SecretString},
 };
 use anyhow::anyhow;
 use axum::{
@@ -14,8 +10,9 @@ use axum::{
     routing::{get, post},
     Json, Router, TypedHeader,
 };
+use email_address::EmailAddress;
 use serde::{Deserialize, Serialize};
-use std::{str::FromStr, sync::Arc};
+use std::{ops::Deref, str::FromStr, sync::Arc};
 use tracing::{error, warn};
 use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
@@ -24,7 +21,7 @@ use uuid::Uuid;
 #[openapi(
     paths(register_user, login, get_current_user),
     components(
-        schemas(UserResponse, User, RegisterUserRequest, NewUser, LoginRequest, Credentials, Password)
+        schemas(UserResponse, User, RegisterUserRequest, NewUser, LoginRequest, Credentials, Email)
     ),
     tags(
         (name = "user", description = "Users and authentication.")
@@ -65,7 +62,7 @@ impl From<(domain::user::User, SecretString)> for UserResponse {
 #[derive(Debug, Serialize, ToSchema)]
 struct User {
     username: String,
-    email: String,
+    email: Email,
     token: String,
     bio: Option<String>,
 }
@@ -75,7 +72,7 @@ impl From<(domain::user::User, SecretString)> for User {
         let (_id, username, email, bio) = domain_user.dissolve();
         Self {
             username: username.into(),
-            email: email.to_string(),
+            email: email.into(),
             token: token.expose_secret().to_owned(),
             bio: bio.map(|b| b.into()),
         }
@@ -92,7 +89,7 @@ struct RegisterUserRequest {
 #[derive(Debug, Deserialize, ToSchema)]
 struct NewUser {
     username: String,
-    email: String,
+    email: Email,
     password: SecretString,
 }
 
@@ -105,8 +102,26 @@ struct LoginRequest {
 /// Credentials to login an existing user.
 #[derive(Debug, Deserialize, ToSchema)]
 struct Credentials {
-    email: String,
+    email: Email,
     password: SecretString,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[schema(value_type = String, format = "email", example = "name@realworld.dev")]
+struct Email(String);
+
+impl From<EmailAddress> for Email {
+    fn from(email_address: EmailAddress) -> Self {
+        Self(email_address.into())
+    }
+}
+
+impl Deref for Email {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        todo!()
+    }
 }
 
 /// Register a new user.

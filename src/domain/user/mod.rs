@@ -182,8 +182,6 @@ static PASSWORD_SPECIAL: LazyLock<Regex> = LazyLock::new(|| {
 
 /// A password.
 #[derive(Debug, Clone, Deserialize)]
-#[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "axum", schema(value_type = String, format = Password, example = "***"))]
 pub struct Password(SecretString);
 
 impl Password {

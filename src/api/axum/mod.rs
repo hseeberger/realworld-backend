@@ -1,6 +1,10 @@
 mod user;
 
-use crate::{api::Config, domain::user::UserRepository, infra::token_factory::TokenFactory};
+use crate::{
+    api::Config,
+    domain::{user::UserRepository, SecretString},
+    infra::token_factory::TokenFactory,
+};
 use anyhow::{Context, Result};
 use axum::{
     http::{Method, StatusCode},
@@ -30,7 +34,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 #[derive(Debug, OpenApi)]
 #[openapi(
-    components(schemas(GenericError, GenericErrorBody)),
+    components(schemas(GenericError, GenericErrorBody, SecretString)),
     modifiers(&SecurityAddon),
 )]
 pub struct ApiDoc;
