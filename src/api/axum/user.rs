@@ -220,6 +220,7 @@ where
 #[utoipa::path(
     get,
     path = "/user",
+    security(("bearer" = [])),
     responses(
         (status = 200, description = "Currently logged-in user.", body = UserResponse),
         (status = 401, description = "Unauthorized."),

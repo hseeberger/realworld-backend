@@ -19,11 +19,20 @@ use tower_http::{
     cors::{self, CorsLayer},
     trace::TraceLayer,
 };
-use utoipa::{OpenApi, ToSchema};
+use utoipa::{
+    openapi::{
+        self,
+        security::{Http, HttpAuthScheme, SecurityScheme},
+    },
+    Modify, OpenApi, ToSchema,
+};
 use utoipa_swagger_ui::SwaggerUi;
 
 #[derive(Debug, OpenApi)]
-#[openapi(components(schemas(GenericError, GenericErrorBody)))]
+#[openapi(
+    components(schemas(GenericError, GenericErrorBody)),
+    modifiers(&SecurityAddon),
+)]
 pub struct ApiDoc;
 
 #[allow(dead_code)]
@@ -118,6 +127,19 @@ struct GenericError {
 #[derive(Debug, Serialize, ToSchema)]
 struct GenericErrorBody {
     body: Vec<String>,
+}
+
+struct SecurityAddon;
+
+impl Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut openapi::OpenApi) {
+        if let Some(components) = openapi.components.as_mut() {
+            components.add_security_scheme(
+                "bearer",
+                SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer)),
+            )
+        }
+    }
 }
 
 async fn ready() -> impl IntoResponse {
