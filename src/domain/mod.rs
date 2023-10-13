@@ -10,6 +10,7 @@ use email_address::EmailAddress;
 use secrecy::ExposeSecret;
 use serde::Deserialize;
 use thiserror::Error;
+use tracing::{debug, info};
 use uuid::Uuid;
 
 // =================================================================================================
@@ -117,6 +118,7 @@ where
         .await?;
 
     let user = User::new(id, username, email, None);
+    info!(?user, "user registered");
 
     Ok(user)
 }
@@ -165,6 +167,7 @@ where
     Argon2::default()
         .verify_password(password.expose_secret().as_bytes(), &password_hash)
         .map_err(|_| LoginUserError::InvalidCredentials)?;
+    debug!(?user, "user logged in");
 
     Ok(user)
 }
@@ -185,13 +188,4 @@ impl<E> From<ImplError<E>> for LoginUserError<E> {
     fn from(ImplError(error): ImplError<E>) -> Self {
         LoginUserError::UserRepositoryError(error)
     }
-}
-
-#[cfg(test)]
-mod tests {
-
-    // #[test]
-    // fn test_register_user() {
-    //     todo!()
-    // }
 }

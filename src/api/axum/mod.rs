@@ -47,8 +47,9 @@ where
 
     let app = Router::new()
         .route("/", get(ready))
+        .nest("/user", user::user_routes())
+        .nest("/users", user::users_routes())
         .merge(SwaggerUi::new("/api-doc").url("/openapi.json", api_doc))
-        .nest("/user", user::routes())
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())

@@ -21,15 +21,15 @@ fix:
 all: fmt check lint test
 
 run-axum:
-	RUST_LOG=realworld_backend_axum=debug,info \
+	RUST_LOG=realworld_backend=debug,info \
 		CONFIG_ENVIRONMENT=dev \
 		APP__API__PORT=8080 \
 		cargo run --features axum \
 		| jq
 
 run-poem-openapi:
-	RUST_LOG=realworld_backend_poem_openapi=debug,info \
+	RUST_LOG=realworld_backend=debug,info \
 		CONFIG_ENVIRONMENT=dev \
-		APP__API__PORT=8081 \
+		APP__API__PORT=8080 \
 		cargo run --features poem-openapi \
 		| jq

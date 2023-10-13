@@ -1,6 +1,6 @@
-# RealWorld example app
+# RealWorld example app – backened
 
-[RealWorld](https://www.realworld.how/) backend implementations in Rust, using different frameworks:
+[RealWorld](https://www.realworld.how/) backend implementations in Rust, using different frameworks (enabled via respective features):
 - [axum](https://crates.io/crates/axum)
 - [poem-openapi](https://crates.io/crates/poem-openapi)
 

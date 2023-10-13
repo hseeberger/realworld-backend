@@ -1,6 +1,5 @@
-use super::AppState;
 use crate::{
-    api::axum::Error,
+    api::axum::{AppState, Error},
     domain::{
         self,
         user::{Password, UserRepository},
@@ -33,14 +32,20 @@ use uuid::Uuid;
 )]
 pub struct ApiDoc;
 
-pub fn routes<U>() -> Router<Arc<AppState<U>>>
+pub fn user_routes<U>() -> Router<Arc<AppState<U>>>
+where
+    U: UserRepository,
+{
+    Router::new().route("/", get(get_current_user))
+}
+
+pub fn users_routes<U>() -> Router<Arc<AppState<U>>>
 where
     U: UserRepository,
 {
     Router::new()
         .route("/", post(register_user))
         .route("/login", post(login))
-        .route("/user", get(get_current_user))
 }
 
 /// A user.
@@ -88,7 +93,7 @@ struct RegisterUserRequest {
 struct NewUser {
     username: String,
     email: String,
-    password: Password,
+    password: SecretString,
 }
 
 /// Request to login an existing user.
@@ -101,7 +106,7 @@ struct LoginRequest {
 #[derive(Debug, Deserialize, ToSchema)]
 struct Credentials {
     email: String,
-    password: Password,
+    password: SecretString,
 }
 
 /// Register a new user.
@@ -133,6 +138,9 @@ where
         .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
     let email = email
         .parse()
+        .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
+    let password = password
+        .try_into()
         .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
 
     let user = domain::register_user(&app_state.user_repository, username, email, password)
@@ -181,6 +189,9 @@ where
 
     let email = email
         .parse()
+        .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
+    let password = password
+        .try_into()
         .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
 
     let user = domain::login(&app_state.user_repository, &email, &password)

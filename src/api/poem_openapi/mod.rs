@@ -4,14 +4,8 @@ use self::user::UserApi;
 use crate::{api::Config, domain::user::UserRepository, infra::token_factory::TokenFactory};
 use anyhow::{Context, Result};
 use futures::FutureExt;
-use poem::{
-    handler,
-    http::{Method, StatusCode},
-    listener::TcpListener,
-    middleware::Cors,
-    EndpointExt, Route, Server,
-};
-use poem_openapi::{Object, OpenApiService, Tags};
+use poem::{http::Method, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
+use poem_openapi::{Object, OpenApi, OpenApiService, Tags};
 use std::fmt::Display;
 use thiserror::Error;
 use tokio::signal::unix::{signal, SignalKind};
@@ -28,13 +22,14 @@ where
     } = config;
 
     let user_api = UserApi::new(user_repository, token_factory);
-    let api = OpenApiService::new(user_api, "realworld-backend-poem-openapi", "0.1");
+    let api = OpenApiService::new((Ready, user_api), "realworld-backend", "0.1");
+    let api_doc = api.swagger_ui();
+    let api_spec = api.spec_endpoint();
 
     let app = Route::new()
-        .nest("/", ready)
-        .nest("/api-doc", api.swagger_ui())
-        .nest("/api-spec", api.spec_endpoint())
-        .nest("/api", api)
+        .nest("/", api)
+        .nest("/api-doc", api_doc)
+        .nest("/api-spec", api_spec)
         .with(
             Cors::new()
                 .allow_method(Method::GET)
@@ -58,6 +53,8 @@ where
 enum ApiTag {
     /// Users and authentication.
     User,
+    /// Readiness.
+    Ready,
 }
 
 #[derive(Debug, Object)]
@@ -87,7 +84,11 @@ struct GenericErrorBody {
 #[error("")]
 struct SilentError;
 
-#[handler]
-fn ready() -> StatusCode {
-    StatusCode::OK
+struct Ready;
+
+#[OpenApi]
+impl Ready {
+    /// Readiness probe.
+    #[oai(path = "/", method = "get", tag = "ApiTag::Ready")]
+    async fn ready(&self) {}
 }
