@@ -32,10 +32,6 @@ use utoipa::{
 };
 use utoipa_swagger_ui::SwaggerUi;
 
-const ROOT: &str = "/";
-const USER: &str = "/user";
-const USERS: &str = "/users";
-
 #[derive(Debug, OpenApi)]
 #[openapi(
     components(schemas(GenericError, GenericErrorBody, SecretString)),
@@ -63,9 +59,9 @@ where
     api_doc.merge(user::ApiDoc::openapi());
 
     let app = Router::new()
-        .route(ROOT, get(ready))
-        .nest(USER, user::user_routes())
-        .nest(USERS, user::users_routes())
+        .route("/", get(ready))
+        .merge(user::user_routes())
+        .merge(user::users_routes())
         .merge(SwaggerUi::new("/api-doc").url("/openapi.json", api_doc))
         .layer(
             ServiceBuilder::new()
