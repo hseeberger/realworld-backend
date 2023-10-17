@@ -1,7 +1,5 @@
 #![feature(assert_matches)]
-#![feature(async_fn_in_trait)]
 #![feature(lazy_cell)]
-#![feature(return_position_impl_trait_in_trait)]
 
 mod api;
 mod domain;
