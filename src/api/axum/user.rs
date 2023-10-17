@@ -1,5 +1,6 @@
+use super::ROOT;
 use crate::{
-    api::axum::{AppState, Error},
+    api::axum::{AppState, Error, USER, USERS},
     domain::{self, user::UserRepository, LoginUserError, RegisterUserError, SecretString},
 };
 use anyhow::anyhow;
@@ -17,6 +18,9 @@ use tracing::{error, warn};
 use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
 
+const USER_TAG: &str = "user"; // TODO: not yet possible to be used for `openapi::tags::name`!
+const LOGIN: &str = "/login";
+
 #[derive(Debug, OpenApi)]
 #[openapi(
     paths(register_user, login, get_current_user),
@@ -33,7 +37,7 @@ pub fn user_routes<U>() -> Router<Arc<AppState<U>>>
 where
     U: UserRepository,
 {
-    Router::new().route("/", get(get_current_user))
+    Router::new().route(ROOT, get(get_current_user))
 }
 
 pub fn users_routes<U>() -> Router<Arc<AppState<U>>>
@@ -41,8 +45,8 @@ where
     U: UserRepository,
 {
     Router::new()
-        .route("/", post(register_user))
-        .route("/login", post(login))
+        .route(ROOT, post(register_user))
+        .route(LOGIN, post(login))
 }
 
 /// A user.
@@ -120,20 +124,68 @@ impl Deref for Email {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
-        todo!()
+        &self.0
     }
+}
+
+/// Get the currently logged-in user.
+#[utoipa::path(
+    get,
+    context_path = USER,
+    path = "/",
+    security(("bearer" = [])),
+    responses(
+        (status = 200, description = "Currently logged-in user.", body = UserResponse),
+        (status = 401, description = "Unauthorized."),
+    ),
+    tag = USER_TAG
+)]
+async fn get_current_user<U>(
+    State(app_state): State<Arc<AppState<U>>>,
+    TypedHeader(Authorization(bearer)): TypedHeader<Authorization<Bearer>>,
+) -> Result<Json<UserResponse>, Error>
+where
+    U: UserRepository,
+{
+    let token = bearer.token().into();
+
+    let user_id = app_state
+        .token_factory
+        .verify_token(&token)
+        .map_err(|error| {
+            warn!(error = format!("{error:#}"), "cannot verify token");
+            Error::from(StatusCode::UNAUTHORIZED)
+        })?;
+    let user_id = Uuid::from_str(&user_id).expect("create UUID from user_id");
+
+    let user = app_state
+        .user_repository
+        .find_user_by_id(user_id)
+        .await
+        .map_err(|error| {
+            error!(%user_id, error = format!("{error:#}"), "cannot get current user");
+            Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+        })?
+        .ok_or_else(|| {
+            let error = anyhow!("cannot find user for user ID {user_id}");
+            error!(%user_id, error = format!("{error:#}"), "cannot get current user");
+            Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+        })?;
+
+    Ok(Json((user, token).into()))
 }
 
 /// Register a new user.
 #[utoipa::path(
     post,
-    path = "/users",
+    context_path = USERS,
+    path = "/",
     responses(
         (status = 201, description = "Successfully registered user.", body = UserResponse),
         (status = 409, description = "Conflicting data for new user to be registered.", body = GenericError),
         (status = 422, description = "Invalid data for new user to be registered.", body = GenericError),
     ),
-    tag = "user"
+    tag = USER_TAG
 )]
 async fn register_user<U>(
     State(app_state): State<Arc<AppState<U>>>,
@@ -185,13 +237,14 @@ where
 /// Login for an existing user.
 #[utoipa::path(
     post,
-    path = "/users/login",
+    context_path = USERS,
+    path = "/login",
     responses(
         (status = 201, description = "Successfully registered user.", body = UserResponse),
         (status = 401, description = "Unauthorized."),
         (status = 422, description = "Invalid credentials.", body = GenericError),
     ),
-    tag = "user"
+    tag = USER_TAG
 )]
 async fn login<U>(
     State(app_state): State<Arc<AppState<U>>>,
@@ -225,52 +278,6 @@ where
         .create_token(user.id())
         .map_err(|error| {
             error!(?user, error = format!("{error:#}"), "cannot create token");
-            Error::from(StatusCode::INTERNAL_SERVER_ERROR)
-        })?;
-
-    Ok(Json((user, token).into()))
-}
-
-/// Get the currently logged-in user.
-#[utoipa::path(
-    get,
-    path = "/user",
-    security(("bearer" = [])),
-    responses(
-        (status = 200, description = "Currently logged-in user.", body = UserResponse),
-        (status = 401, description = "Unauthorized."),
-    ),
-    tag = "user"
-)]
-async fn get_current_user<U>(
-    State(app_state): State<Arc<AppState<U>>>,
-    TypedHeader(Authorization(bearer)): TypedHeader<Authorization<Bearer>>,
-) -> Result<Json<UserResponse>, Error>
-where
-    U: UserRepository,
-{
-    let token = bearer.token().into();
-
-    let user_id = app_state
-        .token_factory
-        .verify_token(&token)
-        .map_err(|error| {
-            warn!(error = format!("{error:#}"), "cannot verify token");
-            Error::from(StatusCode::UNAUTHORIZED)
-        })?;
-    let user_id = Uuid::from_str(&user_id).expect("create UUID from user_id");
-
-    let user = app_state
-        .user_repository
-        .find_user_by_id(user_id)
-        .await
-        .map_err(|error| {
-            error!(%user_id, error = format!("{error:#}"), "cannot get current user");
-            Error::from(StatusCode::INTERNAL_SERVER_ERROR)
-        })?
-        .ok_or_else(|| {
-            let error = anyhow!("cannot find user for user ID {user_id}");
-            error!(%user_id, error = format!("{error:#}"), "cannot get current user");
             Error::from(StatusCode::INTERNAL_SERVER_ERROR)
         })?;
 
