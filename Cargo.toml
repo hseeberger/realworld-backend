@@ -35,6 +35,7 @@ tracing-subscriber = { version = "0.3", default-features = false, features = [ "
 uuid               = { version = "1.4", features = [ "serde", "v7" ] }
 # axum
 axum              = { version = "0.6", features = [ "headers", "http2", "json", "macros" ], optional = true }
+const_format      = { version = "0.2" }
 tower             = { version = "0.4", optional = true }
 tower-http        = { version = "0.4", features = [ "cors", "trace" ], optional = true }
 utoipa            = { version = "4.0", features = [ "axum_extras" ], optional = true }

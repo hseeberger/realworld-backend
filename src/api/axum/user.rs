@@ -1,6 +1,5 @@
-use super::ROOT;
 use crate::{
-    api::axum::{AppState, Error, USER, USERS},
+    api::axum::{AppState, Error},
     domain::{
         self,
         user::{self, RegisterUserError, UserRepository},
@@ -15,6 +14,7 @@ use axum::{
     routing::{get, post},
     Json, Router, TypedHeader,
 };
+use const_format::concatcp;
 use email_address::EmailAddress;
 use serde::{Deserialize, Serialize};
 use std::{ops::Deref, str::FromStr, sync::Arc};
@@ -22,8 +22,11 @@ use tracing::{error, warn};
 use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
 
-const USER_TAG: &str = "user"; // TODO: not yet possible to be used for `openapi::tags::name`!
-const LOGIN: &str = "/login";
+const USER: &str = "/user";
+const USERS: &str = "/users";
+const USERS_LOGIN: &str = concatcp!(USERS, "/login");
+
+const TAG: &str = "user"; // TODO: not yet possible to be used for `openapi::tags::name`!
 
 #[derive(Debug, OpenApi)]
 #[openapi(
@@ -41,7 +44,7 @@ pub fn user_routes<U>() -> Router<Arc<AppState<U>>>
 where
     U: UserRepository,
 {
-    Router::new().route(ROOT, get(get_current_user))
+    Router::new().route(USER, get(get_current_user))
 }
 
 pub fn users_routes<U>() -> Router<Arc<AppState<U>>>
@@ -49,8 +52,8 @@ where
     U: UserRepository,
 {
     Router::new()
-        .route(ROOT, post(register_user))
-        .route(LOGIN, post(login))
+        .route(USERS, post(register_user))
+        .route(USERS_LOGIN, post(login))
 }
 
 /// A user.
@@ -135,23 +138,27 @@ impl Deref for Email {
 /// Get the currently logged-in user.
 #[utoipa::path(
     get,
-    context_path = USER,
-    path = "/",
+    path = USER,
     security(("bearer" = [])),
     responses(
         (status = 200, description = "Currently logged-in user.", body = UserResponse),
         (status = 401, description = "Unauthorized."),
     ),
-    tag = USER_TAG
+    tag = TAG
 )]
 async fn get_current_user<U>(
     State(app_state): State<Arc<AppState<U>>>,
-    TypedHeader(Authorization(bearer)): TypedHeader<Authorization<Bearer>>,
+    bearer: Option<TypedHeader<Authorization<Bearer>>>,
 ) -> Result<Json<UserResponse>, Error>
 where
     U: UserRepository,
 {
-    let token = bearer.token().into();
+    let token = bearer
+        .ok_or_else(|| {
+            warn!(error = "missing token");
+            Error::from(StatusCode::UNAUTHORIZED)
+        })
+        .map(|TypedHeader(Authorization(bearer))| bearer.token().into())?;
 
     let user_id = app_state
         .token_factory
@@ -182,14 +189,13 @@ where
 /// Register a new user.
 #[utoipa::path(
     post,
-    context_path = USERS,
-    path = "/",
+    path = USERS,
     responses(
         (status = 201, description = "Successfully registered user.", body = UserResponse),
         (status = 409, description = "Conflicting data for new user to be registered.", body = GenericError),
         (status = 422, description = "Invalid data for new user to be registered.", body = GenericError),
     ),
-    tag = USER_TAG
+    tag = TAG
 )]
 async fn register_user<U>(
     State(app_state): State<Arc<AppState<U>>>,
@@ -241,14 +247,13 @@ where
 /// Login for an existing user.
 #[utoipa::path(
     post,
-    context_path = USERS,
-    path = "/login",
+    path = USERS_LOGIN,
     responses(
         (status = 201, description = "Successfully registered user.", body = UserResponse),
         (status = 401, description = "Unauthorized."),
         (status = 422, description = "Invalid credentials.", body = GenericError),
     ),
-    tag = USER_TAG
+    tag = TAG
 )]
 async fn login<U>(
     State(app_state): State<Arc<AppState<U>>>,
