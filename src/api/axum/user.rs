@@ -1,7 +1,11 @@
 use super::ROOT;
 use crate::{
     api::axum::{AppState, Error, USER, USERS},
-    domain::{self, user::UserRepository, LoginUserError, RegisterUserError, SecretString},
+    domain::{
+        self,
+        user::{self, RegisterUserError, UserRepository},
+        SecretString,
+    },
 };
 use anyhow::anyhow;
 use axum::{
@@ -210,7 +214,7 @@ where
         .try_into()
         .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
 
-    let user = domain::register_user(&app_state.user_repository, username, email, password)
+    let user = user::register_user(&app_state.user_repository, username, email, password)
         .await
         .map_err(|error| match error {
             RegisterUserError::EmailTaken | RegisterUserError::UsernameTaken => {
@@ -262,10 +266,10 @@ where
         .try_into()
         .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
 
-    let user = domain::login(&app_state.user_repository, &email, &password)
+    let user = user::login(&app_state.user_repository, &email, &password)
         .await
         .map_err(|error| match error {
-            LoginUserError::InvalidCredentials => Error::from(StatusCode::UNAUTHORIZED),
+            user::LoginError::InvalidCredentials => Error::from(StatusCode::UNAUTHORIZED),
 
             error => {
                 error!(%email, error = format!("{error:#}"), "cannot login user");

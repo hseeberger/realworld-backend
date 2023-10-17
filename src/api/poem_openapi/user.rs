@@ -1,7 +1,8 @@
 use crate::{
     api::poem_openapi::{ApiTag, GenericError, SilentError},
     domain::{
-        self, login, register_user, user::UserRepository, LoginUserError, RegisterUserError,
+        self,
+        user::{self, LoginError, RegisterUserError, UserRepository},
         SecretString,
     },
     infra::token_factory::TokenFactory,
@@ -54,7 +55,7 @@ where
             .try_into()
             .map_err(RegisterUserResponse::unprocessable_entity)?;
 
-        let user = register_user(&self.user_repository, username, email, password).await;
+        let user = user::register_user(&self.user_repository, username, email, password).await;
 
         match user {
             Ok(user) => match self.token_factory.create_token(user.id()) {
@@ -89,7 +90,7 @@ where
             .try_into()
             .map_err(LoginResponse::unprocessable_entity)?;
 
-        let user = login(&self.user_repository, &email, &password).await;
+        let user = user::login(&self.user_repository, &email, &password).await;
 
         match user {
             Ok(user) => match self.token_factory.create_token(user.id()) {
@@ -101,7 +102,7 @@ where
                 }
             },
 
-            Err(LoginUserError::InvalidCredentials) => Ok(LoginResponse::Unauthorized),
+            Err(LoginError::InvalidCredentials) => Ok(LoginResponse::Unauthorized),
 
             Err(error) => {
                 error!(%email, error = format!("{error:#}"), "cannot login user");
