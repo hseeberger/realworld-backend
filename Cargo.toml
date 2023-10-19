@@ -32,7 +32,7 @@ time               = { version = "0.3", features = [ "formatting", "parsing", "s
 tokio              = { version = "1", features = [ "macros", "rt-multi-thread", "signal" ] }
 tracing            = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.3", default-features = false, features = [ "env-filter", "fmt", "json" ] }
-uuid               = { version = "1.4", features = [ "serde", "v7" ] }
+uuid               = { version = "1.5", features = [ "serde", "v7" ] }
 # axum
 axum              = { version = "0.6", features = [ "headers", "http2", "json", "macros" ], optional = true }
 const_format      = { version = "0.2" }
