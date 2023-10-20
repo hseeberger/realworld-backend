@@ -481,9 +481,9 @@ dependencies = [
 
 [[package]]
 name = "configured"
-version = "0.5.0"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f75b227f2651b11cd7d6b3b20ca02cc980d65734b00d0d424b1d519dd13d573f"
+checksum = "485256a238350ce067bd2fa30c3f00af65e7d9705e433ae7091bfdcec3d391eb"
 dependencies = [
  "config",
  "serde",
