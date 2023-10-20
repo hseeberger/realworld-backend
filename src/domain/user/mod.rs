@@ -132,7 +132,7 @@ impl Display for Bio {
     }
 }
 
-pub async fn register_user<U>(
+pub async fn register<U>(
     user_repository: &U,
     username: Username,
     email: EmailAddress,
@@ -155,7 +155,6 @@ where
 
     let user = User::new(id, username, email, None);
     info!(?user, "user registered");
-
     Ok(user)
 }
 
@@ -203,8 +202,8 @@ where
     Argon2::default()
         .verify_password(password.expose_secret().as_bytes(), &password_hash)
         .map_err(|_| LoginError::InvalidCredentials)?;
-    debug!(?user, "user logged in");
 
+    debug!(?user, "user logged in");
     Ok(user)
 }
 

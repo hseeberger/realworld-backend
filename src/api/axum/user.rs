@@ -2,7 +2,7 @@ use crate::{
     api::axum::{AppState, Error},
     domain::{
         self,
-        user::{self, RegisterUserError, UserRepository},
+        user::{LoginError, RegisterUserError, UserRepository},
         SecretString,
     },
 };
@@ -30,7 +30,7 @@ const TAG: &str = "user"; // TODO: not yet possible to be used for `openapi::tag
 
 #[derive(Debug, OpenApi)]
 #[openapi(
-    paths(register_user, login, get_current_user),
+    paths(register, login, get_current),
     components(
         schemas(UserResponse, User, RegisterUserRequest, NewUser, LoginRequest, Credentials, Email)
     ),
@@ -44,7 +44,7 @@ pub fn user_routes<U>() -> Router<Arc<AppState<U>>>
 where
     U: UserRepository,
 {
-    Router::new().route(USER, get(get_current_user))
+    Router::new().route(USER, get(get_current))
 }
 
 pub fn users_routes<U>() -> Router<Arc<AppState<U>>>
@@ -52,7 +52,7 @@ where
     U: UserRepository,
 {
     Router::new()
-        .route(USERS, post(register_user))
+        .route(USERS, post(register))
         .route(USERS_LOGIN, post(login))
 }
 
@@ -146,7 +146,7 @@ impl Deref for Email {
     ),
     tag = TAG
 )]
-async fn get_current_user<U>(
+async fn get_current<U>(
     State(app_state): State<Arc<AppState<U>>>,
     bearer: Option<TypedHeader<Authorization<Bearer>>>,
 ) -> Result<Json<UserResponse>, Error>
@@ -197,7 +197,7 @@ where
     ),
     tag = TAG
 )]
-async fn register_user<U>(
+async fn register<U>(
     State(app_state): State<Arc<AppState<U>>>,
     Json(register_request): Json<RegisterUserRequest>,
 ) -> Result<Json<UserResponse>, Error>
@@ -220,7 +220,7 @@ where
         .try_into()
         .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
 
-    let user = user::register_user(&app_state.user_repository, username, email, password)
+    let user = domain::user::register(&app_state.user_repository, username, email, password)
         .await
         .map_err(|error| match error {
             RegisterUserError::EmailTaken | RegisterUserError::UsernameTaken => {
@@ -271,10 +271,10 @@ where
         .try_into()
         .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
 
-    let user = user::login(&app_state.user_repository, &email, &password)
+    let user = domain::user::login(&app_state.user_repository, &email, &password)
         .await
         .map_err(|error| match error {
-            user::LoginError::InvalidCredentials => Error::from(StatusCode::UNAUTHORIZED),
+            LoginError::InvalidCredentials => Error::from(StatusCode::UNAUTHORIZED),
 
             error => {
                 error!(%email, error = format!("{error:#}"), "cannot login user");

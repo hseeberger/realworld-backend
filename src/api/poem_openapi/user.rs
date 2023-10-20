@@ -2,7 +2,7 @@ use crate::{
     api::poem_openapi::{ApiTag, GenericError, SilentError},
     domain::{
         self,
-        user::{self, LoginError, RegisterUserError, UserRepository},
+        user::{LoginError, RegisterUserError, UserRepository},
         SecretString,
     },
     infra::token_factory::TokenFactory,
@@ -33,9 +33,41 @@ where
         }
     }
 
+    /// Get the currently logged-in user.
+    #[oai(path = "/user", method = "get", tag = "ApiTag::User")]
+    async fn get_current(&self, Auth(bearer): Auth) -> Result<GetCurrentUserResponse> {
+        let token = bearer.token.into();
+
+        match self.token_factory.verify_token(&token) {
+            Ok(user_id) => {
+                let user_id = Uuid::from_str(&user_id).expect("create UUID from user_id");
+
+                match self.user_repository.find_user_by_id(user_id).await {
+                    Ok(Some(user)) => Ok(GetCurrentUserResponse::ok((user, token).into())),
+
+                    Ok(None) => {
+                        let error = anyhow!("cannot find user for user ID {user_id}");
+                        error!(%user_id, error = format!("{error:#}"), "cannot get current user");
+                        Err(InternalServerError(SilentError))
+                    }
+
+                    Err(error) => {
+                        error!(%user_id, error = format!("{error:#}"), "cannot get current user");
+                        Err(InternalServerError(SilentError))
+                    }
+                }
+            }
+
+            Err(error) => {
+                warn!(error = format!("{error:#}"), "cannot verify token");
+                Ok(GetCurrentUserResponse::Unauthorized)
+            }
+        }
+    }
+
     /// Register a new user.
     #[oai(path = "/users", method = "post", tag = "ApiTag::User")]
-    async fn register_user(
+    async fn register(
         &self,
         Json(register_request): Json<RegisterUserRequest>,
     ) -> Result<RegisterUserResponse> {
@@ -55,7 +87,7 @@ where
             .try_into()
             .map_err(RegisterUserResponse::unprocessable_entity)?;
 
-        let user = user::register_user(&self.user_repository, username, email, password).await;
+        let user = domain::user::register(&self.user_repository, username, email, password).await;
 
         match user {
             Ok(user) => match self.token_factory.create_token(user.id()) {
@@ -90,7 +122,7 @@ where
             .try_into()
             .map_err(LoginResponse::unprocessable_entity)?;
 
-        let user = user::login(&self.user_repository, &email, &password).await;
+        let user = domain::user::login(&self.user_repository, &email, &password).await;
 
         match user {
             Ok(user) => match self.token_factory.create_token(user.id()) {
@@ -107,38 +139,6 @@ where
             Err(error) => {
                 error!(%email, error = format!("{error:#}"), "cannot login user");
                 Err(InternalServerError(SilentError))
-            }
-        }
-    }
-
-    /// Get the currently logged-in user.
-    #[oai(path = "/user", method = "get", tag = "ApiTag::User")]
-    async fn get_current_user(&self, Auth(bearer): Auth) -> Result<GetCurrentUserResponse> {
-        let token = bearer.token.into();
-
-        match self.token_factory.verify_token(&token) {
-            Ok(user_id) => {
-                let user_id = Uuid::from_str(&user_id).expect("create UUID from user_id");
-
-                match self.user_repository.find_user_by_id(user_id).await {
-                    Ok(Some(user)) => Ok(GetCurrentUserResponse::ok((user, token).into())),
-
-                    Ok(None) => {
-                        let error = anyhow!("cannot find user for user ID {user_id}");
-                        error!(%user_id, error = format!("{error:#}"), "cannot get current user");
-                        Err(InternalServerError(SilentError))
-                    }
-
-                    Err(error) => {
-                        error!(%user_id, error = format!("{error:#}"), "cannot get current user");
-                        Err(InternalServerError(SilentError))
-                    }
-                }
-            }
-
-            Err(error) => {
-                warn!(error = format!("{error:#}"), "cannot verify token");
-                Ok(GetCurrentUserResponse::Unauthorized)
             }
         }
     }
