@@ -132,30 +132,87 @@ impl Display for Bio {
     }
 }
 
-pub async fn register<U>(
-    user_repository: &U,
-    username: Username,
-    email: EmailAddress,
-    password: Password,
-) -> Result<User, RegisterUserError<U::Error>>
+pub struct UserService<U> {
+    user_repository: U,
+}
+
+impl<U> UserService<U>
 where
     U: UserRepository,
 {
-    let id = Uuid::now_v7();
-    let salt = SaltString::generate(&mut OsRng);
-    let password_hash = Argon2::default()
-        .hash_password(password.expose_secret().as_bytes(), &salt)
-        .map_err(RegisterUserError::PasswordHash)?
-        .to_string()
-        .into();
+    pub fn new(user_repository: U) -> Self {
+        Self { user_repository }
+    }
 
-    user_repository
-        .add_user(id, &username, &email, &password_hash)
-        .await?;
+    pub async fn user_by_id(&self, id: Uuid) -> Result<User, GetUserError<U::Error>>
+    where
+        U: UserRepository,
+    {
+        self.user_repository
+            .find_user_by_id(id)
+            .await?
+            .ok_or_else(|| GetUserError::UnknownUser(id))
+    }
 
-    let user = User::new(id, username, email, None);
-    info!(?user, "user registered");
-    Ok(user)
+    pub async fn register_user(
+        &self,
+        username: Username,
+        email: EmailAddress,
+        password: Password,
+    ) -> Result<User, RegisterUserError<U::Error>> {
+        let id = Uuid::now_v7();
+        let salt = SaltString::generate(&mut OsRng);
+        let password_hash = Argon2::default()
+            .hash_password(password.expose_secret().as_bytes(), &salt)
+            .map_err(RegisterUserError::PasswordHash)?
+            .to_string()
+            .into();
+
+        self.user_repository
+            .add_user(id, &username, &email, &password_hash)
+            .await?;
+
+        let user = User::new(id, username, email, None);
+        info!(?user, "user registered");
+        Ok(user)
+    }
+
+    pub async fn login_user(
+        &self,
+        email: &EmailAddress,
+        password: &Password,
+    ) -> Result<User, LoginError<U::Error>> {
+        let (user, password_hash) = self
+            .user_repository
+            .find_user_and_password_hash_by_email(email)
+            .await?
+            .ok_or(LoginError::InvalidCredentials)?
+            .dissolve();
+
+        let password_hash =
+            PasswordHash::new(password_hash.expose_secret()).map_err(LoginError::PasswordHash)?;
+        Argon2::default()
+            .verify_password(password.expose_secret().as_bytes(), &password_hash)
+            .map_err(|_| LoginError::InvalidCredentials)?;
+
+        debug!(?user, "user logged in");
+        Ok(user)
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum GetUserError<E> {
+    #[error("unknown user for ID {0}")]
+    UnknownUser(Uuid),
+
+    #[error(transparent)]
+    UserRepository(E),
+}
+
+impl<E> From<ImplError<E>> for GetUserError<E> {
+    fn from(ImplError(error): ImplError<E>) -> Self {
+        GetUserError::UserRepository(error)
+    }
 }
 
 #[derive(Debug, Error)]
@@ -183,37 +240,13 @@ impl<E> From<AddUserError<E>> for RegisterUserError<E> {
     }
 }
 
-pub async fn login<U>(
-    user_repository: &U,
-    email: &EmailAddress,
-    password: &Password,
-) -> Result<User, LoginError<U::Error>>
-where
-    U: UserRepository,
-{
-    let (user, password_hash) = user_repository
-        .find_user_and_password_hash_by_email(email)
-        .await?
-        .ok_or(LoginError::InvalidCredentials)?
-        .dissolve();
-
-    let password_hash =
-        PasswordHash::new(password_hash.expose_secret()).map_err(LoginError::PasswordHash)?;
-    Argon2::default()
-        .verify_password(password.expose_secret().as_bytes(), &password_hash)
-        .map_err(|_| LoginError::InvalidCredentials)?;
-
-    debug!(?user, "user logged in");
-    Ok(user)
-}
-
 #[derive(Debug, Error)]
 pub enum LoginError<E> {
     #[error("invalid credentials")]
     InvalidCredentials,
 
     #[error(transparent)]
-    UserRepositoryError(E),
+    UserRepository(E),
 
     #[error("{0}")]
     PasswordHash(password_hash::Error),
@@ -221,7 +254,7 @@ pub enum LoginError<E> {
 
 impl<E> From<ImplError<E>> for LoginError<E> {
     fn from(ImplError(error): ImplError<E>) -> Self {
-        LoginError::UserRepositoryError(error)
+        LoginError::UserRepository(error)
     }
 }
 

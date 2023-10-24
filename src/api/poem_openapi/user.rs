@@ -2,22 +2,20 @@ use crate::{
     api::poem_openapi::{ApiTag, GenericError, SilentError},
     domain::{
         self,
-        user::{LoginError, RegisterUserError, UserRepository},
+        user::{GetUserError, LoginError, RegisterUserError, UserRepository, UserService},
         SecretString,
     },
     infra::token_factory::TokenFactory,
 };
-use anyhow::anyhow;
 use poem::{error::InternalServerError, Error, Result};
 use poem_openapi::{
     auth::Bearer, payload::Json, types::Email, ApiResponse, Object, OpenApi, SecurityScheme,
 };
-use std::{fmt::Display, str::FromStr};
+use std::fmt::Display;
 use tracing::{error, warn};
-use uuid::Uuid;
 
 pub struct UserApi<U> {
-    user_repository: U,
+    user_service: UserService<U>,
     token_factory: TokenFactory,
 }
 
@@ -26,9 +24,9 @@ impl<U> UserApi<U>
 where
     U: UserRepository + Send + Sync,
 {
-    pub fn new(user_repository: U, token_factory: TokenFactory) -> Self {
+    pub fn new(user_service: UserService<U>, token_factory: TokenFactory) -> Self {
         Self {
-            user_repository,
+            user_service,
             token_factory,
         }
     }
@@ -38,29 +36,18 @@ where
     async fn get_current(&self, Auth(bearer): Auth) -> Result<GetCurrentUserResponse> {
         let token = bearer.token.into();
 
-        match self.token_factory.verify_token(&token) {
-            Ok(user_id) => {
-                let user_id = Uuid::from_str(&user_id).expect("create UUID from user_id");
+        let id = self.token_factory.verify_token(&token).map_err(|error| {
+            warn!(error = format!("{error:#}"), "cannot verify token");
+            GetCurrentUserResponse::Unauthorized
+        })?;
 
-                match self.user_repository.find_user_by_id(user_id).await {
-                    Ok(Some(user)) => Ok(GetCurrentUserResponse::ok((user, token).into())),
-
-                    Ok(None) => {
-                        let error = anyhow!("cannot find user for user ID {user_id}");
-                        error!(%user_id, error = format!("{error:#}"), "cannot get current user");
-                        Err(InternalServerError(SilentError))
-                    }
-
-                    Err(error) => {
-                        error!(%user_id, error = format!("{error:#}"), "cannot get current user");
-                        Err(InternalServerError(SilentError))
-                    }
-                }
-            }
+        match self.user_service.user_by_id(id).await {
+            Ok(user) => Ok(GetCurrentUserResponse::ok((user, token).into())),
+            Err(GetUserError::UnknownUser(_)) => Ok(GetCurrentUserResponse::Unauthorized),
 
             Err(error) => {
-                warn!(error = format!("{error:#}"), "cannot verify token");
-                Ok(GetCurrentUserResponse::Unauthorized)
+                error!(%id, error = format!("{error:#}"), "cannot get current user");
+                Err(InternalServerError(SilentError))
             }
         }
     }
@@ -87,7 +74,10 @@ where
             .try_into()
             .map_err(RegisterUserResponse::unprocessable_entity)?;
 
-        let user = domain::user::register(&self.user_repository, username, email, password).await;
+        let user = self
+            .user_service
+            .register_user(username, email, password)
+            .await;
 
         match user {
             Ok(user) => match self.token_factory.create_token(user.id()) {
@@ -122,7 +112,7 @@ where
             .try_into()
             .map_err(LoginResponse::unprocessable_entity)?;
 
-        let user = domain::user::login(&self.user_repository, &email, &password).await;
+        let user = self.user_service.login_user(&email, &password).await;
 
         match user {
             Ok(user) => match self.token_factory.create_token(user.id()) {

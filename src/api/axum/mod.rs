@@ -2,7 +2,10 @@ mod user;
 
 use crate::{
     api::Config,
-    domain::{user::UserRepository, SecretString},
+    domain::{
+        user::{UserRepository, UserService},
+        SecretString,
+    },
     infra::token_factory::TokenFactory,
 };
 use anyhow::{Context, Result};
@@ -40,7 +43,11 @@ use utoipa_swagger_ui::SwaggerUi;
 pub struct ApiDoc;
 
 #[allow(dead_code)]
-pub async fn serve<U>(config: Config, user_repository: U, token_factory: TokenFactory) -> Result<()>
+pub async fn serve<U>(
+    config: Config,
+    user_service: UserService<U>,
+    token_factory: TokenFactory,
+) -> Result<()>
 where
     U: UserRepository,
 {
@@ -51,7 +58,7 @@ where
     } = config;
 
     let app_state = Arc::new(AppState {
-        user_repository,
+        user_service,
         token_factory,
     });
 
@@ -83,7 +90,7 @@ where
 }
 
 struct AppState<U> {
-    user_repository: U,
+    user_service: UserService<U>,
     token_factory: TokenFactory,
 }
 
