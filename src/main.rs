@@ -5,7 +5,10 @@ mod api;
 mod domain;
 mod infra;
 
-use crate::infra::{sqlite_repository::SqliteRepository, token_factory::TokenFactory};
+use crate::{
+    domain::user::UserService,
+    infra::{sqlite_repository::SqliteRepository, token_factory::TokenFactory},
+};
 use anyhow::{Context, Result};
 use configured::Configured;
 use infra::{sqlite_repository, token_factory};
@@ -69,7 +72,10 @@ async fn run() -> Result<()> {
     let repository = SqliteRepository::new(config.sqlite)
         .await
         .context("create SqliteRepository")?;
+
     let token_factory = TokenFactory::new(config.token_factory).context("create TokenFactory")?;
 
-    api::serve(config.api, repository, token_factory).await
+    let user_service = UserService::new(repository);
+
+    api::serve(config.api, user_service, token_factory).await
 }

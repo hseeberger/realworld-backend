@@ -3,7 +3,8 @@ set shell := ["bash", "-uc"]
 default_port := "8080"
 
 check:
-	cargo check --all-features --tests
+	cargo check --features axum --tests
+	cargo check --features poem-openapi --tests
 
 fmt:
 	cargo +nightly fmt

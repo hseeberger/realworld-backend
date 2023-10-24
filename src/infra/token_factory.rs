@@ -6,6 +6,7 @@ use jwt_simple::prelude::{
 };
 use serde::Deserialize;
 use std::{fmt::Debug, time::Duration as StdDuration};
+use uuid::Uuid;
 
 pub struct TokenFactory {
     key: HS256Key,
@@ -40,18 +41,15 @@ impl TokenFactory {
         })
     }
 
-    pub fn create_token<T>(&self, subject: T) -> Result<SecretString>
-    where
-        T: ToString,
-    {
-        let claims = Claims::create(self.token_expiry).with_subject(subject);
+    pub fn create_token(&self, uuid: Uuid) -> Result<SecretString> {
+        let claims = Claims::create(self.token_expiry).with_subject(uuid);
         self.key
             .authenticate(claims)
             .context("authenticate claims")
             .map(|token| token.into())
     }
 
-    pub fn verify_token(&self, token: &SecretString) -> Result<String> {
+    pub fn verify_token(&self, token: &SecretString) -> Result<Uuid> {
         self.key
             .verify_token::<NoCustomClaims>(
                 token.expose_secret(),
@@ -59,6 +57,7 @@ impl TokenFactory {
             )
             .context("verify token")
             .and_then(|claims| claims.subject.ok_or(anyhow!("JWT token has no subject")))
+            .and_then(|subject| subject.parse().context("parse subject as Uuid"))
     }
 }
 

@@ -1,7 +1,11 @@
 mod user;
 
 use self::user::UserApi;
-use crate::{api::Config, domain::user::UserRepository, infra::token_factory::TokenFactory};
+use crate::{
+    api::Config,
+    domain::user::{UserRepository, UserService},
+    infra::token_factory::TokenFactory,
+};
 use anyhow::{Context, Result};
 use futures::FutureExt;
 use poem::{http::Method, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
@@ -11,7 +15,11 @@ use thiserror::Error;
 use tokio::signal::unix::{signal, SignalKind};
 
 #[allow(dead_code)]
-pub async fn serve<U>(config: Config, user_repository: U, token_factory: TokenFactory) -> Result<()>
+pub async fn serve<U>(
+    config: Config,
+    user_service: UserService<U>,
+    token_factory: TokenFactory,
+) -> Result<()>
 where
     U: UserRepository,
 {
@@ -21,7 +29,7 @@ where
         shutdown_timeout,
     } = config;
 
-    let user_api = UserApi::new(user_repository, token_factory);
+    let user_api = UserApi::new(user_service, token_factory);
     let api = OpenApiService::new((Ready, user_api), "realworld-backend", "0.1");
     let api_doc = api.swagger_ui();
     let api_spec = api.spec_endpoint();

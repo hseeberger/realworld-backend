@@ -2,11 +2,10 @@ use crate::{
     api::axum::{AppState, Error},
     domain::{
         self,
-        user::{LoginError, RegisterUserError, UserRepository},
+        user::{GetUserError, LoginError, RegisterUserError, UserRepository},
         SecretString,
     },
 };
-use anyhow::anyhow;
 use axum::{
     extract::State,
     headers::{authorization::Bearer, Authorization},
@@ -17,10 +16,9 @@ use axum::{
 use const_format::concatcp;
 use email_address::EmailAddress;
 use serde::{Deserialize, Serialize};
-use std::{ops::Deref, str::FromStr, sync::Arc};
+use std::{ops::Deref, sync::Arc};
 use tracing::{error, warn};
 use utoipa::{OpenApi, ToSchema};
-use uuid::Uuid;
 
 const USER: &str = "/user";
 const USERS: &str = "/users";
@@ -160,27 +158,25 @@ where
         })
         .map(|TypedHeader(Authorization(bearer))| bearer.token().into())?;
 
-    let user_id = app_state
+    let id = app_state
         .token_factory
         .verify_token(&token)
         .map_err(|error| {
             warn!(error = format!("{error:#}"), "cannot verify token");
             Error::from(StatusCode::UNAUTHORIZED)
         })?;
-    let user_id = Uuid::from_str(&user_id).expect("create UUID from user_id");
 
     let user = app_state
-        .user_repository
-        .find_user_by_id(user_id)
+        .user_service
+        .user_by_id(id)
         .await
-        .map_err(|error| {
-            error!(%user_id, error = format!("{error:#}"), "cannot get current user");
-            Error::from(StatusCode::INTERNAL_SERVER_ERROR)
-        })?
-        .ok_or_else(|| {
-            let error = anyhow!("cannot find user for user ID {user_id}");
-            error!(%user_id, error = format!("{error:#}"), "cannot get current user");
-            Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+        .map_err(|error| match error {
+            GetUserError::UnknownUser(_) => Error::from((StatusCode::NOT_FOUND, error)),
+
+            error => {
+                error!(%id, error = format!("{error:#}"), "cannot get current user");
+                Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+            }
         })?;
 
     Ok(Json((user, token).into()))
@@ -220,7 +216,9 @@ where
         .try_into()
         .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
 
-    let user = domain::user::register(&app_state.user_repository, username, email, password)
+    let user = app_state
+        .user_service
+        .register_user(username, email, password)
         .await
         .map_err(|error| match error {
             RegisterUserError::EmailTaken | RegisterUserError::UsernameTaken => {
@@ -271,7 +269,9 @@ where
         .try_into()
         .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
 
-    let user = domain::user::login(&app_state.user_repository, &email, &password)
+    let user = app_state
+        .user_service
+        .login_user(&email, &password)
         .await
         .map_err(|error| match error {
             LoginError::InvalidCredentials => Error::from(StatusCode::UNAUTHORIZED),
