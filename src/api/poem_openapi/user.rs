@@ -2,7 +2,10 @@ use crate::{
     api::poem_openapi::{ApiTag, GenericError, SilentError},
     domain::{
         self,
-        user::{GetUserError, LoginError, RegisterUserError, UserRepository, UserService},
+        user::{
+            user_repository::UserRepository, GetUserError, LoginError, RegisterUserError,
+            UserService,
+        },
         SecretString,
     },
     infra::token_factory::TokenFactory,
@@ -33,7 +36,7 @@ where
 
     /// Get the currently logged-in user.
     #[oai(path = "/user", method = "get", tag = "ApiTag::User")]
-    async fn get_current(&self, Auth(bearer): Auth) -> Result<GetCurrentUserResponse> {
+    async fn get_current_user(&self, Auth(bearer): Auth) -> Result<GetCurrentUserResponse> {
         let token = bearer.token.into();
 
         let id = self.token_factory.verify_token(&token).map_err(|error| {
@@ -54,7 +57,7 @@ where
 
     /// Register a new user.
     #[oai(path = "/users", method = "post", tag = "ApiTag::User")]
-    async fn register(
+    async fn register_user(
         &self,
         Json(register_request): Json<RegisterUserRequest>,
     ) -> Result<RegisterUserResponse> {
@@ -104,7 +107,7 @@ where
 
     /// Login for an existing user.
     #[oai(path = "/users/login", method = "post", tag = "ApiTag::User")]
-    async fn login(&self, Json(login_request): Json<LoginRequest>) -> Result<LoginResponse> {
+    async fn login_user(&self, Json(login_request): Json<LoginRequest>) -> Result<LoginResponse> {
         let Credentials { email, password } = login_request.user;
 
         let email = email.parse().map_err(LoginResponse::unprocessable_entity)?;

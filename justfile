@@ -25,14 +25,14 @@ all: fmt check lint test
 
 run-axum port=default_port:
 	RUST_LOG=realworld_backend=debug,info \
-		CONFIG_ENVIRONMENT=dev \
+		CONFIG_OVERLAYS=dev \
 		APP__API__PORT={{port}} \
 		cargo run --features axum \
 		| jq
 
 run-poem-openapi port=default_port:
 	RUST_LOG=realworld_backend=debug,info \
-		CONFIG_ENVIRONMENT=dev \
+		CONFIG_OVERLAYS=dev \
 		APP__API__PORT={{port}} \
 		cargo run --features poem-openapi \
 		| jq

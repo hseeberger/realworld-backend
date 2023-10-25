@@ -3,7 +3,7 @@ mod user;
 use crate::{
     api::Config,
     domain::{
-        user::{UserRepository, UserService},
+        user::{user_repository::UserRepository, UserService},
         SecretString,
     },
     infra::token_factory::TokenFactory,
