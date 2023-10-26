@@ -91,12 +91,14 @@ impl From<(domain::user::User, SecretString)> for User {
     }
 }
 
-// Request to update the currently logged in user.
+/// Request to update the currently logged in user.
 #[derive(Debug, Deserialize, ToSchema)]
 struct UpdateUserRequest {
     user: UpdateUser,
 }
 
+/// Update for the currently logged in user. As `bio` is optional in [User], `None` means deleting
+/// the current `bio`.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateUser {
     username: Option<String>,
@@ -132,6 +134,7 @@ struct Credentials {
     password: SecretString,
 }
 
+/// An email address.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[schema(value_type = String, format = "email", example = "name@realworld.dev")]
 struct Email(String);
@@ -188,7 +191,10 @@ where
         .user_by_id(id)
         .await
         .map_err(|error| match error {
-            GetUserError::UnknownUser(_) => Error::from((StatusCode::NOT_FOUND, error)),
+            GetUserError::UnknownUser(id) => {
+                error!(%id, error = format!("{error:#}"), "current user not found");
+                Error::from((StatusCode::NOT_FOUND, error))
+            }
 
             GetUserError::UserRepository(_) => {
                 error!(%id, error = format!("{error:#}"), "cannot get current user");
@@ -262,11 +268,14 @@ where
         .update_user(id, username, email, password, bio)
         .await
         .map_err(|error| match error {
+            UpdateUserError::UnknownUser(id) => {
+                error!(%id, error = format!("{error:#}"), "current user not found");
+                Error::from((StatusCode::NOT_FOUND, error))
+            }
+
             UpdateUserError::EmailTaken | UpdateUserError::UsernameTaken => {
                 (StatusCode::CONFLICT, error).into()
             }
-
-            UpdateUserError::UnknownUser(_) => Error::from((StatusCode::NOT_FOUND, error)),
 
             UpdateUserError::PasswordHash(_) | UpdateUserError::UserRepository(_) => {
                 error!(%id, error = format!("{error:#}"), "cannot get current user");
@@ -369,6 +378,11 @@ where
         .login_user(&email, &password)
         .await
         .map_err(|error| match error {
+            LoginError::UnknownUser(ref email) => {
+                error!(%email, error = format!("{error:#}"), "user not found");
+                Error::from((StatusCode::NOT_FOUND, error))
+            }
+
             LoginError::InvalidCredentials => Error::from(StatusCode::UNAUTHORIZED),
 
             LoginError::PasswordHash(_) | LoginError::UserRepository(_) => {

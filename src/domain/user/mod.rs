@@ -303,7 +303,7 @@ where
             .user_repository
             .find_user_and_password_hash_by_email(email)
             .await?
-            .ok_or(LoginError::InvalidCredentials)?
+            .ok_or(LoginError::UnknownUser(email.to_owned()))?
             .dissolve();
 
         let password_hash =
@@ -394,6 +394,9 @@ impl<E> From<AddUserError<E>> for RegisterUserError<E> {
 
 #[derive(Debug, Error)]
 pub enum LoginError<E> {
+    #[error("unknown user for email {0}")]
+    UnknownUser(EmailAddress),
+
     #[error("invalid credentials")]
     InvalidCredentials,
 
