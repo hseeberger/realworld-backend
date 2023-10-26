@@ -328,9 +328,6 @@ pub enum GetUserError<E> {
 
 #[derive(Debug, Error)]
 pub enum UpdateUserError<E> {
-    #[error(transparent)]
-    InvalidUpdate(user_repository::UpdateUserError<E>),
-
     #[error("unknown user for ID {0}")]
     UnknownUser(Uuid),
 
@@ -350,9 +347,6 @@ pub enum UpdateUserError<E> {
 impl<E> From<user_repository::UpdateUserError<E>> for UpdateUserError<E> {
     fn from(error: user_repository::UpdateUserError<E>) -> Self {
         match error {
-            user_repository::UpdateUserError::InvalidUpdate => {
-                UpdateUserError::InvalidUpdate(error)
-            }
             user_repository::UpdateUserError::UsernameTaken => UpdateUserError::UsernameTaken,
             user_repository::UpdateUserError::EmailTaken => UpdateUserError::EmailTaken,
             user_repository::UpdateUserError::ImplError(error) => {

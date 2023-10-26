@@ -262,8 +262,6 @@ where
         .update_user(id, username, email, password, bio)
         .await
         .map_err(|error| match error {
-            UpdateUserError::InvalidUpdate(_) => (StatusCode::UNPROCESSABLE_ENTITY, error).into(),
-
             UpdateUserError::EmailTaken | UpdateUserError::UsernameTaken => {
                 (StatusCode::CONFLICT, error).into()
             }

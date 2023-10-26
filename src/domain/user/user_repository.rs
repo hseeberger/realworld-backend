@@ -53,9 +53,6 @@ pub enum AddUserError<E> {
 
 #[derive(Debug, Error)]
 pub enum UpdateUserError<E> {
-    #[error("at least one of username, email, password_hash or bio must be given")]
-    InvalidUpdate,
-
     #[error("username taken")]
     UsernameTaken,
 

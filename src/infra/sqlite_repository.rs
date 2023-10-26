@@ -15,7 +15,6 @@ use sqlx::{
 };
 use std::str::FromStr;
 use thiserror::Error;
-use tracing::debug;
 use uuid::Uuid;
 
 pub struct SqliteRepository {
@@ -100,7 +99,7 @@ impl UserRepository for SqliteRepository {
         password_hash: Option<SecretString>,
         bio: Option<Bio>,
     ) -> Result<(), UpdateUserError<Self::Error>> {
-        let mut query = "UPDATE user SET ".to_string();
+        let mut query = "UPDATE user SET".to_string();
         if username.is_some() {
             query = format!("{query} username = ?, ")
         };
@@ -110,22 +109,7 @@ impl UserRepository for SqliteRepository {
         if password_hash.is_some() {
             query = format!("{query} password_hash = ?, ")
         };
-        if bio.is_some() {
-            query = format!("{query} bio = ?, ")
-        };
-        if !query.ends_with(", ") {
-            return Err(UpdateUserError::InvalidUpdate);
-        }
-        query.truncate(query.len() - 2);
-        query = format!("{query} WHERE id = ?");
-        debug!(
-            query,
-            ?username,
-            ?email,
-            ?password_hash,
-            ?bio,
-            "built query"
-        );
+        query = format!("{query} bio = ? WHERE id = ?");
 
         let mut query = sqlx::query(&query);
         if let Some(username) = username {
@@ -137,11 +121,9 @@ impl UserRepository for SqliteRepository {
         if let Some(password_hash) = password_hash {
             query = query.bind(password_hash.expose_secret().to_string());
         };
-        if let Some(bio) = bio {
-            query = query.bind(bio.to_string());
-        };
 
         query
+            .bind(bio.map(|bio| bio.to_string()))
             .bind(id.as_bytes().to_vec())
             .execute(&self.pool)
             .await
