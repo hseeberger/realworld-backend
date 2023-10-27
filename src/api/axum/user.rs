@@ -161,6 +161,7 @@ impl Deref for Email {
     responses(
         (status = 200, description = "Currently logged-in user.", body = UserResponse),
         (status = 401, description = "Unauthorized."),
+        (status = 404, description = "Not found."),
     ),
     tag = TAG
 )]
@@ -193,10 +194,10 @@ where
         .map_err(|error| match error {
             GetUserError::UnknownUser(id) => {
                 error!(%id, error = format!("{error:#}"), "current user not found");
-                Error::from((StatusCode::NOT_FOUND, error))
+                Error::from(StatusCode::NOT_FOUND)
             }
 
-            GetUserError::UserRepository(_) => {
+            GetUserError::UserRepository(error) => {
                 error!(%id, error = format!("{error:#}"), "cannot get current user");
                 Error::from(StatusCode::INTERNAL_SERVER_ERROR)
             }
@@ -213,6 +214,9 @@ where
     responses(
         (status = 200, description = "Updated currently logged-in user.", body = UserResponse),
         (status = 401, description = "Unauthorized."),
+        (status = 404, description = "Not found."),
+        (status = 404, description = "Conflict."),
+        (status = 422, description = "Invalid user update data.", body = GenericError),
     ),
     tag = TAG
 )]
@@ -224,13 +228,6 @@ async fn update_current_user<U>(
 where
     U: UserRepository,
 {
-    let UpdateUser {
-        username,
-        email,
-        password,
-        bio,
-    } = request.user;
-
     let token = bearer
         .ok_or_else(|| {
             warn!(error = "missing token");
@@ -245,6 +242,13 @@ where
             warn!(error = format!("{error:#}"), "cannot verify token");
             Error::from(StatusCode::UNAUTHORIZED)
         })?;
+
+    let UpdateUser {
+        username,
+        email,
+        password,
+        bio,
+    } = request.user;
 
     let username = username
         .map(TryInto::try_into)
@@ -270,14 +274,19 @@ where
         .map_err(|error| match error {
             UpdateUserError::UnknownUser(id) => {
                 error!(%id, error = format!("{error:#}"), "current user not found");
-                Error::from((StatusCode::NOT_FOUND, error))
+                Error::from(StatusCode::NOT_FOUND)
             }
 
             UpdateUserError::EmailTaken | UpdateUserError::UsernameTaken => {
                 (StatusCode::CONFLICT, error).into()
             }
 
-            UpdateUserError::PasswordHash(_) | UpdateUserError::UserRepository(_) => {
+            UpdateUserError::PasswordHash(error) => {
+                error!(%id, error = format!("{error:#}"), "cannot get current user");
+                Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+
+            UpdateUserError::UserRepository(error) => {
                 error!(%id, error = format!("{error:#}"), "cannot get current user");
                 Error::from(StatusCode::INTERNAL_SERVER_ERROR)
             }
@@ -329,7 +338,12 @@ where
                 (StatusCode::CONFLICT, error).into()
             }
 
-            RegisterUserError::PasswordHash(_) | RegisterUserError::UserRepository(_) => {
+            RegisterUserError::PasswordHash(error) => {
+                error!(error = format!("{error:#}"), "cannot register user");
+                Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+
+            RegisterUserError::UserRepository(error) => {
                 error!(error = format!("{error:#}"), "cannot register user");
                 Error::from(StatusCode::INTERNAL_SERVER_ERROR)
             }
@@ -353,6 +367,7 @@ where
     responses(
         (status = 201, description = "Successfully registered user.", body = UserResponse),
         (status = 401, description = "Unauthorized."),
+        (status = 404, description = "Not found."),
         (status = 422, description = "Invalid credentials.", body = GenericError),
     ),
     tag = TAG
@@ -380,12 +395,17 @@ where
         .map_err(|error| match error {
             LoginError::UnknownUser(ref email) => {
                 error!(%email, error = format!("{error:#}"), "user not found");
-                Error::from((StatusCode::NOT_FOUND, error))
+                Error::from(StatusCode::NOT_FOUND)
             }
 
             LoginError::InvalidCredentials => Error::from(StatusCode::UNAUTHORIZED),
 
-            LoginError::PasswordHash(_) | LoginError::UserRepository(_) => {
+            LoginError::PasswordHash(error) => {
+                error!(%email, error = format!("{error:#}"), "cannot login user");
+                Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+
+            LoginError::UserRepository(error) => {
                 error!(%email, error = format!("{error:#}"), "cannot login user");
                 Error::from(StatusCode::INTERNAL_SERVER_ERROR)
             }

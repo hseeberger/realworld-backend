@@ -1,7 +1,5 @@
 set shell := ["bash", "-uc"]
 
-default_port := "8080"
-
 check:
 	cargo check --features axum --tests
 	cargo check --features poem-openapi --tests
@@ -21,16 +19,23 @@ test:
 fix:
 	cargo fix --allow-dirty --allow-staged
 
-all: fmt check lint test
+all: check fmt lint test
 
-run-axum port=default_port:
+docker framework="axum" tag="latest":
+	[ "{{framework}}" = "axum" ] || [ "{{framework}}" = "poem-openapi" ]
+	docker build \
+		--build-arg FRAMEWORK={{framework}} \
+		-t hseeberger/realworld-backend:{{tag}}-{{framework}} \
+		.
+
+run-axum port="8080":
 	RUST_LOG=realworld_backend=debug,info \
 		CONFIG_OVERLAYS=dev \
 		APP__API__PORT={{port}} \
 		cargo run --features axum \
 		| jq
 
-run-poem-openapi port=default_port:
+run-poem-openapi port="8080":
 	RUST_LOG=realworld_backend=debug,info \
 		CONFIG_OVERLAYS=dev \
 		APP__API__PORT={{port}} \
