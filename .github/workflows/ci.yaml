@@ -39,7 +39,8 @@ jobs:
           rm /home/runner/.cargo/bin/rustfmt
           rm /home/runner/.cargo/bin/cargo-fmt
           rustup toolchain install $RUSTUP_TOOLCHAIN
-          rustup component add --toolchain $RUSTUP_TOOLCHAIN clippy
+          rustup component add --toolchain $RUSTUP_TOOLCHAIN rustfmt
+          rustup component add --toolchain $RUSTUP_TOOLCHAIN cargo-fmt
 
       - name: Install just
         uses: taiki-e/install-action@v2
