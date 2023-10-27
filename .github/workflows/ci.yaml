@@ -36,8 +36,9 @@ jobs:
       - name: Install Rust toolchain
         run: |
           rm /home/runner/.cargo/bin/rustfmt
-          rustup toolchain install $RUSTUP_TOOLCHAIN
+          rustup toolchain install $RUSTUP_TOOLCHAIN --profile minimal
           rustup component add --toolchain $RUSTUP_TOOLCHAIN rustfmt
+          rustup component add --toolchain $RUSTUP_TOOLCHAIN clippy
 
       - name: Install just
         uses: taiki-e/install-action@v2
