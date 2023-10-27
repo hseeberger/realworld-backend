@@ -59,7 +59,7 @@ where
     }
 
     /// Update the currently logged-in user.
-    #[oai(path = "/user", method = "post", tag = "ApiTag::User")]
+    #[oai(path = "/user", method = "put", tag = "ApiTag::User")]
     async fn update_current_user(
         &self,
         Auth(bearer): Auth,
@@ -263,7 +263,7 @@ pub struct UpdateUser {
 #[oai(bad_request_handler = "UpdateUserResponse::bad_request_handler")]
 enum UpdateUserResponse {
     /// Updated currently logged-in user.
-    #[oai(status = 201)]
+    #[oai(status = 200)]
     Ok(Json<UserResponse>),
 
     /// Unauthorized.

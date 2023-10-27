@@ -28,16 +28,10 @@ docker framework="axum" tag="latest":
 		-t hseeberger/realworld-backend:{{tag}}-{{framework}} \
 		.
 
-run-axum port="8080":
+run framework="axum" port="8080":
+	[ "{{framework}}" = "axum" ] || [ "{{framework}}" = "poem-openapi" ]
 	RUST_LOG=realworld_backend=debug,info \
 		CONFIG_OVERLAYS=dev \
 		APP__API__PORT={{port}} \
-		cargo run --features axum \
-		| jq
-
-run-poem-openapi port="8080":
-	RUST_LOG=realworld_backend=debug,info \
-		CONFIG_OVERLAYS=dev \
-		APP__API__PORT={{port}} \
-		cargo run --features poem-openapi \
+		cargo run --features {{framework}} \
 		| jq

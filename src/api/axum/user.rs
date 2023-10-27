@@ -208,14 +208,14 @@ where
 
 /// Update the currently logged-in user.
 #[utoipa::path(
-    post,
+    put,
     path = USER,
     security(("bearer" = [])),
     responses(
         (status = 200, description = "Updated currently logged-in user.", body = UserResponse),
         (status = 401, description = "Unauthorized."),
         (status = 404, description = "Not found."),
-        (status = 404, description = "Conflict."),
+        (status = 409, description = "Conflict."),
         (status = 422, description = "Invalid user update data.", body = GenericError),
     ),
     tag = TAG
