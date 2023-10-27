@@ -1,22 +1,28 @@
 set shell := ["bash", "-uc"]
 
 check:
+	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
 	cargo check --features axum --tests
 	cargo check --features poem-openapi --tests
 
 fmt:
+	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
 	cargo +nightly fmt
 
 fmt-check:
+	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
 	cargo +nightly fmt --check
 
 lint:
+	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
 	cargo clippy --all-features --no-deps -- -D warnings
 
 test:
+	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
 	cargo test --all-features
 
 fix:
+	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
 	cargo fix --allow-dirty --allow-staged
 
 all: check fmt lint test
@@ -29,6 +35,7 @@ docker framework="axum" tag="latest":
 		.
 
 run framework="axum" port="8080":
+	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
 	[ "{{framework}}" = "axum" ] || [ "{{framework}}" = "poem-openapi" ]
 	RUST_LOG=realworld_backend=debug,info \
 		CONFIG_OVERLAYS=dev \
