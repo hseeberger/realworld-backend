@@ -7,11 +7,11 @@ check:
 
 fmt:
 	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
-	cargo +nightly fmt
+	cargo fmt
 
 fmt-check:
 	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
-	cargo +nightly fmt --check
+	cargo fmt --check
 
 lint:
 	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
