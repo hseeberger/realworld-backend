@@ -1,0 +1,10 @@
+.dockerignore
+.github
+.gitignore
+.vscode
+**/.git
+**/target
+Dockerfile
+justfile
+LICENSE
+README.md

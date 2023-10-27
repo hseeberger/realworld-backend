@@ -1,38 +1,44 @@
 set shell := ["bash", "-uc"]
 
-default_port := "8080"
-
 check:
+	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
 	cargo check --features axum --tests
 	cargo check --features poem-openapi --tests
 
 fmt:
-	cargo +nightly fmt
+	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
+	cargo fmt
 
 fmt-check:
-	cargo +nightly fmt --check
+	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
+	cargo fmt --check
 
 lint:
+	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
 	cargo clippy --all-features --no-deps -- -D warnings
 
 test:
+	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
 	cargo test --all-features
 
 fix:
+	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
 	cargo fix --allow-dirty --allow-staged
 
-all: fmt check lint test
+all: check fmt lint test
 
-run-axum port=default_port:
-	RUST_LOG=realworld_backend=debug,info \
-		CONFIG_ENVIRONMENT=dev \
-		APP__API__PORT={{port}} \
-		cargo run --features axum \
-		| jq
+docker framework="axum" tag="latest":
+	[ "{{framework}}" = "axum" ] || [ "{{framework}}" = "poem-openapi" ]
+	docker build \
+		--build-arg FRAMEWORK={{framework}} \
+		-t hseeberger/realworld-backend:{{tag}}-{{framework}} \
+		.
 
-run-poem-openapi port=default_port:
+run framework="axum" port="8080":
+	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
+	[ "{{framework}}" = "axum" ] || [ "{{framework}}" = "poem-openapi" ]
 	RUST_LOG=realworld_backend=debug,info \
-		CONFIG_ENVIRONMENT=dev \
+		CONFIG_OVERLAYS=dev \
 		APP__API__PORT={{port}} \
-		cargo run --features poem-openapi \
+		cargo run --features {{framework}} \
 		| jq

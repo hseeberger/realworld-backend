@@ -1,21 +1,40 @@
-mod user_repository;
+pub mod user_repository;
 
-pub use user_repository::*;
-
+use self::user_repository::{AddUserError, ImplError, UserRepository};
+use crate::domain::SecretString;
 use anyhow::Result;
 use argon2::{
     password_hash::{self, rand_core::OsRng, SaltString},
     Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
 };
 use email_address::EmailAddress;
+use regex::Regex;
+use serde::Deserialize;
 use std::{
     convert::Infallible,
     fmt::{self, Debug, Display},
+    ops::Deref,
     str::FromStr,
+    sync::LazyLock,
 };
 use thiserror::Error;
 use tracing::{debug, info};
 use uuid::Uuid;
+
+static PASSWORD_ALPHA: LazyLock<Regex> = LazyLock::new(|| {
+    let password = r"^.*[A-Za-z].*$";
+    Regex::new(password).expect("create regex for numeric password")
+});
+
+static PASSWORD_NUMERIC: LazyLock<Regex> = LazyLock::new(|| {
+    let password = r"^.*[0-9].*$";
+    Regex::new(password).expect("create regex for numeric password")
+});
+
+static PASSWORD_SPECIAL: LazyLock<Regex> = LazyLock::new(|| {
+    let password = r"^.*[@#$%^&*\-_+=?].*$";
+    Regex::new(password).expect("create regex for numeric password")
+});
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct User {
@@ -126,9 +145,80 @@ impl AsRef<str> for Bio {
     }
 }
 
+impl Deref for Bio {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl Display for Bio {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+/// A password.
+#[derive(Debug, Clone, Deserialize)]
+pub struct Password(SecretString);
+
+impl Password {
+    pub fn expose_secret(&self) -> &str {
+        self.0.expose_secret()
+    }
+}
+
+impl TryFrom<SecretString> for Password {
+    type Error = InvalidPassword;
+
+    fn try_from(secret_string: SecretString) -> Result<Self, Self::Error> {
+        let s = secret_string.expose_secret();
+        if s.len() >= 8
+            && PASSWORD_ALPHA.is_match(s)
+            && PASSWORD_NUMERIC.is_match(s)
+            && PASSWORD_SPECIAL.is_match(s)
+        {
+            Ok(Self(secret_string))
+        } else {
+            Err(InvalidPassword)
+        }
+    }
+}
+
+impl FromStr for Password {
+    type Err = InvalidPassword;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let secret_string = SecretString::from(s.to_string());
+        secret_string.try_into()
+    }
+}
+
+#[derive(Debug, Error)]
+#[error("invalid password: at least eight characters, one character, one digit and one special character out of @#$%^&*-_+=? required")]
+pub struct InvalidPassword;
+
+#[derive(Debug, Clone)]
+pub struct UserAndPasswordHash {
+    user: User,
+    password_hash: SecretString,
+}
+
+impl UserAndPasswordHash {
+    pub fn new(user: User, password_hash: SecretString) -> Self {
+        Self {
+            user,
+            password_hash,
+        }
+    }
+
+    pub fn dissolve(self) -> (User, SecretString) {
+        let Self {
+            user,
+            password_hash,
+        } = self;
+        (user, password_hash)
     }
 }
 
@@ -149,9 +239,36 @@ where
         U: UserRepository,
     {
         self.user_repository
-            .find_user_by_id(id)
+            .user_by_id(id)
             .await?
             .ok_or_else(|| GetUserError::UnknownUser(id))
+    }
+
+    pub async fn update_user(
+        &self,
+        id: Uuid,
+        username: Option<Username>,
+        email: Option<EmailAddress>,
+        password: Option<Password>,
+        bio: Option<Bio>,
+    ) -> Result<User, UpdateUserError<U::Error>> {
+        let salt = SaltString::generate(&mut OsRng);
+        let password_hash = password
+            .map(|password| {
+                Argon2::default()
+                    .hash_password(password.expose_secret().as_bytes(), &salt)
+                    .map_err(UpdateUserError::PasswordHash)
+            })
+            .transpose()?
+            .map(|x| x.to_string().into());
+
+        self.user_repository
+            .update_user(id, username, email, password_hash, bio)
+            .await?;
+
+        let user = self.user_by_id(id).await?;
+
+        Ok(user)
     }
 
     pub async fn register_user(
@@ -186,7 +303,7 @@ where
             .user_repository
             .find_user_and_password_hash_by_email(email)
             .await?
-            .ok_or(LoginError::InvalidCredentials)?
+            .ok_or(LoginError::UnknownUser(email.to_owned()))?
             .dissolve();
 
         let password_hash =
@@ -206,22 +323,57 @@ pub enum GetUserError<E> {
     UnknownUser(Uuid),
 
     #[error(transparent)]
-    UserRepository(E),
+    UserRepository(#[from] ImplError<E>),
 }
 
-impl<E> From<ImplError<E>> for GetUserError<E> {
-    fn from(ImplError(error): ImplError<E>) -> Self {
-        GetUserError::UserRepository(error)
+#[derive(Debug, Error)]
+pub enum UpdateUserError<E> {
+    #[error("unknown user for ID {0}")]
+    UnknownUser(Uuid),
+
+    #[error("username taken")]
+    UsernameTaken,
+
+    #[error("email taken")]
+    EmailTaken,
+
+    #[error(transparent)]
+    UserRepository(#[from] E),
+
+    #[error("{0}")]
+    PasswordHash(password_hash::Error),
+}
+
+impl<E> From<user_repository::UpdateUserError<E>> for UpdateUserError<E> {
+    fn from(error: user_repository::UpdateUserError<E>) -> Self {
+        match error {
+            user_repository::UpdateUserError::UsernameTaken => UpdateUserError::UsernameTaken,
+            user_repository::UpdateUserError::EmailTaken => UpdateUserError::EmailTaken,
+            user_repository::UpdateUserError::ImplError(error) => {
+                UpdateUserError::UserRepository(error)
+            }
+        }
+    }
+}
+
+impl<E> From<GetUserError<E>> for UpdateUserError<E> {
+    fn from(error: GetUserError<E>) -> Self {
+        match error {
+            GetUserError::UnknownUser(id) => UpdateUserError::UnknownUser(id),
+            GetUserError::UserRepository(ImplError(error)) => {
+                UpdateUserError::UserRepository(error)
+            }
+        }
     }
 }
 
 #[derive(Debug, Error)]
 pub enum RegisterUserError<E> {
-    #[error("email taken")]
-    EmailTaken,
-
     #[error("username taken")]
     UsernameTaken,
+
+    #[error("email taken")]
+    EmailTaken,
 
     #[error(transparent)]
     UserRepository(E),
@@ -242,20 +394,17 @@ impl<E> From<AddUserError<E>> for RegisterUserError<E> {
 
 #[derive(Debug, Error)]
 pub enum LoginError<E> {
+    #[error("unknown user for email {0}")]
+    UnknownUser(EmailAddress),
+
     #[error("invalid credentials")]
     InvalidCredentials,
 
     #[error(transparent)]
-    UserRepository(E),
+    UserRepository(#[from] ImplError<E>),
 
     #[error("{0}")]
     PasswordHash(password_hash::Error),
-}
-
-impl<E> From<ImplError<E>> for LoginError<E> {
-    fn from(ImplError(error): ImplError<E>) -> Self {
-        LoginError::UserRepository(error)
-    }
 }
 
 #[cfg(test)]
@@ -294,5 +443,29 @@ mod tests {
             String::from(Username::from_str(username_str).unwrap()),
             username_str
         );
+    }
+
+    #[test]
+    fn test_password_try_from() {
+        let password_secret = SecretString::from("a+b-567".to_string());
+        assert_matches!(Password::try_from(password_secret), Err(InvalidPassword));
+
+        let password_secret = SecretString::from("a2345678".to_string());
+        assert_matches!(Password::try_from(password_secret), Err(InvalidPassword));
+
+        let password_secret = SecretString::from("12345678".to_string());
+        assert_matches!(Password::try_from(password_secret), Err(InvalidPassword));
+
+        let password_secret = SecretString::from("abcdefg+".to_string());
+        assert_matches!(Password::try_from(password_secret), Err(InvalidPassword));
+
+        for c in "@#$%^&*-_+=?".chars() {
+            let password = format!("a{c}2345678");
+            let password_secret = SecretString::from(password.clone());
+            assert_matches!(
+                Password::try_from(password_secret),
+                Ok(Password(s)) if s.expose_secret() == password
+            );
+        }
     }
 }

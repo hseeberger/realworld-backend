@@ -1,5 +1,8 @@
 use crate::domain::{
-    user::{AddUserError, ImplError, User, UserAndPasswordHash, UserRepository, Username},
+    user::{
+        user_repository::{AddUserError, ImplError, UpdateUserError, UserRepository},
+        Bio, User, UserAndPasswordHash, Username,
+    },
     SecretString,
 };
 use anyhow::{Context, Result};
@@ -41,35 +44,7 @@ impl SqliteRepository {
 impl UserRepository for SqliteRepository {
     type Error = Error;
 
-    async fn add_user(
-        &self,
-        id: Uuid,
-        username: &Username,
-        email: &EmailAddress,
-        password_hash: &SecretString,
-    ) -> Result<(), AddUserError<Self::Error>> {
-        sqlx::query("INSERT INTO user (id, email, password_hash, username) VALUES(?, ?, ?, ?)")
-            .bind(id.as_bytes().to_vec())
-            .bind(email.as_ref())
-            .bind(password_hash.expose_secret())
-            .bind(username.as_ref())
-            .execute(&self.pool)
-            .await
-            .map_err(|error| match error {
-                sqlx::Error::Database(e) if is_unique_violation(e.as_ref(), "email") => {
-                    AddUserError::EmailTaken
-                }
-
-                sqlx::Error::Database(e) if is_unique_violation(e.as_ref(), "username") => {
-                    AddUserError::UsernameTaken
-                }
-
-                other => AddUserError::ImplError(Error(other)),
-            })
-            .map(|_| ())
-    }
-
-    async fn find_user_by_id(&self, id: Uuid) -> Result<Option<User>, ImplError<Self::Error>> {
+    async fn user_by_id(&self, id: Uuid) -> Result<Option<User>, ImplError<Self::Error>> {
         sqlx::query_as("SELECT * FROM user where id = ?")
             .bind(id.as_bytes().to_vec())
             .fetch_optional(&self.pool)
@@ -86,6 +61,84 @@ impl UserRepository for SqliteRepository {
             .fetch_optional(&self.pool)
             .await
             .map_err(|error| ImplError(Error(error)))
+    }
+
+    async fn add_user(
+        &self,
+        id: Uuid,
+        username: &Username,
+        email: &EmailAddress,
+        password_hash: &SecretString,
+    ) -> Result<(), AddUserError<Self::Error>> {
+        sqlx::query("INSERT INTO user (id, username, email, password_hash) VALUES(?, ?, ?, ?)")
+            .bind(id.as_bytes().to_vec())
+            .bind(username.as_ref())
+            .bind(email.as_ref())
+            .bind(password_hash.expose_secret())
+            .execute(&self.pool)
+            .await
+            .map_err(|error| match error {
+                sqlx::Error::Database(e) if is_unique_violation(e.as_ref(), "email") => {
+                    AddUserError::EmailTaken
+                }
+
+                sqlx::Error::Database(e) if is_unique_violation(e.as_ref(), "username") => {
+                    AddUserError::UsernameTaken
+                }
+
+                other => AddUserError::ImplError(Error(other)),
+            })
+            .map(|_| ())
+    }
+
+    async fn update_user(
+        &self,
+        id: Uuid,
+        username: Option<Username>,
+        email: Option<EmailAddress>,
+        password_hash: Option<SecretString>,
+        bio: Option<Bio>,
+    ) -> Result<(), UpdateUserError<Self::Error>> {
+        let mut query = "UPDATE user SET".to_string();
+        if username.is_some() {
+            query = format!("{query} username = ?, ")
+        };
+        if email.is_some() {
+            query = format!("{query} email = ?, ")
+        };
+        if password_hash.is_some() {
+            query = format!("{query} password_hash = ?, ")
+        };
+        query = format!("{query} bio = ? WHERE id = ?");
+
+        let mut query = sqlx::query(&query);
+        if let Some(username) = username {
+            query = query.bind(username.to_string());
+        };
+        if let Some(email) = email {
+            query = query.bind(email.to_string());
+        };
+        if let Some(password_hash) = password_hash {
+            query = query.bind(password_hash.expose_secret().to_string());
+        };
+
+        query
+            .bind(bio.map(|bio| bio.to_string()))
+            .bind(id.as_bytes().to_vec())
+            .execute(&self.pool)
+            .await
+            .map_err(|error| match error {
+                sqlx::Error::Database(e) if is_unique_violation(e.as_ref(), "email") => {
+                    UpdateUserError::EmailTaken
+                }
+
+                sqlx::Error::Database(e) if is_unique_violation(e.as_ref(), "username") => {
+                    UpdateUserError::UsernameTaken
+                }
+
+                other => UpdateUserError::ImplError(Error(other)),
+            })
+            .map(|_| ())
     }
 }
 
@@ -218,10 +271,10 @@ mod tests {
 
         let user = User::new(id, username.clone(), email.clone(), None);
 
-        let result = repository.find_user_by_id(id).await;
+        let result = repository.user_by_id(id).await;
         assert_matches!(result, Ok(Some(u)) if u == user);
 
-        let result = repository.find_user_by_id(Uuid::now_v7()).await;
+        let result = repository.user_by_id(Uuid::now_v7()).await;
         assert_matches!(result, Ok(None));
 
         let result = repository

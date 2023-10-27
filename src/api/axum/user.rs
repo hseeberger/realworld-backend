@@ -2,7 +2,10 @@ use crate::{
     api::axum::{AppState, Error},
     domain::{
         self,
-        user::{GetUserError, LoginError, RegisterUserError, UserRepository},
+        user::{
+            user_repository::UserRepository, GetUserError, LoginError, RegisterUserError,
+            UpdateUserError,
+        },
         SecretString,
     },
 };
@@ -28,9 +31,9 @@ const TAG: &str = "user"; // TODO: not yet possible to be used for `openapi::tag
 
 #[derive(Debug, OpenApi)]
 #[openapi(
-    paths(register, login, get_current),
+    paths(get_current_user, update_current_user, register_user, login_user),
     components(
-        schemas(UserResponse, User, RegisterUserRequest, NewUser, LoginRequest, Credentials, Email)
+        schemas(UserResponse, User, UpdateUserRequest, UpdateUser, RegisterUserRequest, NewUser, LoginRequest, Credentials, Email)
     ),
     tags(
         (name = "user", description = "Users and authentication.")
@@ -42,7 +45,7 @@ pub fn user_routes<U>() -> Router<Arc<AppState<U>>>
 where
     U: UserRepository,
 {
-    Router::new().route(USER, get(get_current))
+    Router::new().route(USER, get(get_current_user).put(update_current_user))
 }
 
 pub fn users_routes<U>() -> Router<Arc<AppState<U>>>
@@ -50,8 +53,8 @@ where
     U: UserRepository,
 {
     Router::new()
-        .route(USERS, post(register))
-        .route(USERS_LOGIN, post(login))
+        .route(USERS, post(register_user))
+        .route(USERS_LOGIN, post(login_user))
 }
 
 /// A user.
@@ -88,6 +91,22 @@ impl From<(domain::user::User, SecretString)> for User {
     }
 }
 
+/// Request to update the currently logged in user.
+#[derive(Debug, Deserialize, ToSchema)]
+struct UpdateUserRequest {
+    user: UpdateUser,
+}
+
+/// Update for the currently logged in user. As `bio` is optional in [User], `None` means deleting
+/// the current `bio`.
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct UpdateUser {
+    username: Option<String>,
+    email: Option<Email>,
+    password: Option<SecretString>,
+    bio: Option<String>,
+}
+
 /// Request to register a new user.
 #[derive(Debug, Deserialize, ToSchema)]
 struct RegisterUserRequest {
@@ -115,6 +134,7 @@ struct Credentials {
     password: SecretString,
 }
 
+/// An email address.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[schema(value_type = String, format = "email", example = "name@realworld.dev")]
 struct Email(String);
@@ -141,10 +161,11 @@ impl Deref for Email {
     responses(
         (status = 200, description = "Currently logged-in user.", body = UserResponse),
         (status = 401, description = "Unauthorized."),
+        (status = 404, description = "Not found."),
     ),
     tag = TAG
 )]
-async fn get_current<U>(
+async fn get_current_user<U>(
     State(app_state): State<Arc<AppState<U>>>,
     bearer: Option<TypedHeader<Authorization<Bearer>>>,
 ) -> Result<Json<UserResponse>, Error>
@@ -171,9 +192,101 @@ where
         .user_by_id(id)
         .await
         .map_err(|error| match error {
-            GetUserError::UnknownUser(_) => Error::from((StatusCode::NOT_FOUND, error)),
+            GetUserError::UnknownUser(id) => {
+                error!(%id, error = format!("{error:#}"), "current user not found");
+                Error::from(StatusCode::NOT_FOUND)
+            }
 
-            error => {
+            GetUserError::UserRepository(error) => {
+                error!(%id, error = format!("{error:#}"), "cannot get current user");
+                Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        })?;
+
+    Ok(Json((user, token).into()))
+}
+
+/// Update the currently logged-in user.
+#[utoipa::path(
+    put,
+    path = USER,
+    security(("bearer" = [])),
+    responses(
+        (status = 200, description = "Updated currently logged-in user.", body = UserResponse),
+        (status = 401, description = "Unauthorized."),
+        (status = 404, description = "Not found."),
+        (status = 409, description = "Conflict."),
+        (status = 422, description = "Invalid user update data.", body = GenericError),
+    ),
+    tag = TAG
+)]
+async fn update_current_user<U>(
+    State(app_state): State<Arc<AppState<U>>>,
+    bearer: Option<TypedHeader<Authorization<Bearer>>>,
+    Json(request): Json<UpdateUserRequest>,
+) -> Result<Json<UserResponse>, Error>
+where
+    U: UserRepository,
+{
+    let token = bearer
+        .ok_or_else(|| {
+            warn!(error = "missing token");
+            Error::from(StatusCode::UNAUTHORIZED)
+        })
+        .map(|TypedHeader(Authorization(bearer))| bearer.token().into())?;
+
+    let id = app_state
+        .token_factory
+        .verify_token(&token)
+        .map_err(|error| {
+            warn!(error = format!("{error:#}"), "cannot verify token");
+            Error::from(StatusCode::UNAUTHORIZED)
+        })?;
+
+    let UpdateUser {
+        username,
+        email,
+        password,
+        bio,
+    } = request.user;
+
+    let username = username
+        .map(TryInto::try_into)
+        .transpose()
+        .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
+    let email = email
+        .map(|email| email.parse())
+        .transpose()
+        .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
+    let password = password
+        .map(TryInto::try_into)
+        .transpose()
+        .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
+    let bio = bio
+        .map(|bio| bio.try_into())
+        .transpose()
+        .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
+
+    let user = app_state
+        .user_service
+        .update_user(id, username, email, password, bio)
+        .await
+        .map_err(|error| match error {
+            UpdateUserError::UnknownUser(id) => {
+                error!(%id, error = format!("{error:#}"), "current user not found");
+                Error::from(StatusCode::NOT_FOUND)
+            }
+
+            UpdateUserError::EmailTaken | UpdateUserError::UsernameTaken => {
+                (StatusCode::CONFLICT, error).into()
+            }
+
+            UpdateUserError::PasswordHash(error) => {
+                error!(%id, error = format!("{error:#}"), "cannot get current user");
+                Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+
+            UpdateUserError::UserRepository(error) => {
                 error!(%id, error = format!("{error:#}"), "cannot get current user");
                 Error::from(StatusCode::INTERNAL_SERVER_ERROR)
             }
@@ -193,9 +306,9 @@ where
     ),
     tag = TAG
 )]
-async fn register<U>(
+async fn register_user<U>(
     State(app_state): State<Arc<AppState<U>>>,
-    Json(register_request): Json<RegisterUserRequest>,
+    Json(request): Json<RegisterUserRequest>,
 ) -> Result<Json<UserResponse>, Error>
 where
     U: UserRepository,
@@ -204,7 +317,7 @@ where
         username,
         email,
         password,
-    } = register_request.user;
+    } = request.user;
 
     let username = username
         .try_into()
@@ -225,7 +338,12 @@ where
                 (StatusCode::CONFLICT, error).into()
             }
 
-            _ => {
+            RegisterUserError::PasswordHash(error) => {
+                error!(error = format!("{error:#}"), "cannot register user");
+                Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+
+            RegisterUserError::UserRepository(error) => {
                 error!(error = format!("{error:#}"), "cannot register user");
                 Error::from(StatusCode::INTERNAL_SERVER_ERROR)
             }
@@ -249,18 +367,19 @@ where
     responses(
         (status = 201, description = "Successfully registered user.", body = UserResponse),
         (status = 401, description = "Unauthorized."),
+        (status = 404, description = "Not found."),
         (status = 422, description = "Invalid credentials.", body = GenericError),
     ),
     tag = TAG
 )]
-async fn login<U>(
+async fn login_user<U>(
     State(app_state): State<Arc<AppState<U>>>,
-    Json(login_request): Json<LoginRequest>,
+    Json(request): Json<LoginRequest>,
 ) -> Result<Json<UserResponse>, Error>
 where
     U: UserRepository,
 {
-    let Credentials { email, password } = login_request.user;
+    let Credentials { email, password } = request.user;
 
     let email = email
         .parse()
@@ -274,9 +393,19 @@ where
         .login_user(&email, &password)
         .await
         .map_err(|error| match error {
+            LoginError::UnknownUser(ref email) => {
+                error!(%email, error = format!("{error:#}"), "user not found");
+                Error::from(StatusCode::NOT_FOUND)
+            }
+
             LoginError::InvalidCredentials => Error::from(StatusCode::UNAUTHORIZED),
 
-            error => {
+            LoginError::PasswordHash(error) => {
+                error!(%email, error = format!("{error:#}"), "cannot login user");
+                Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+
+            LoginError::UserRepository(error) => {
                 error!(%email, error = format!("{error:#}"), "cannot login user");
                 Error::from(StatusCode::INTERNAL_SERVER_ERROR)
             }

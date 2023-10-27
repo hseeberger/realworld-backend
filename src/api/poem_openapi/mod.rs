@@ -3,7 +3,7 @@ mod user;
 use self::user::UserApi;
 use crate::{
     api::Config,
-    domain::user::{UserRepository, UserService},
+    domain::user::{user_repository::UserRepository, UserService},
     infra::token_factory::TokenFactory,
 };
 use anyhow::{Context, Result};
