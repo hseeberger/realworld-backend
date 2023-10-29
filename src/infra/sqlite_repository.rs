@@ -97,7 +97,7 @@ impl UserRepository for SqliteRepository {
         username: Option<Username>,
         email: Option<EmailAddress>,
         password_hash: Option<SecretString>,
-        bio: Option<Bio>,
+        bio: Option<Option<Bio>>,
     ) -> Result<(), UpdateUserError<Self::Error>> {
         let mut query = "UPDATE user SET".to_string();
         if username.is_some() {
@@ -121,9 +121,11 @@ impl UserRepository for SqliteRepository {
         if let Some(password_hash) = password_hash {
             query = query.bind(password_hash.expose_secret().to_string());
         };
+        if let Some(bio) = bio {
+            query = query.bind(bio.map(|bio| bio.to_string()));
+        };
 
         query
-            .bind(bio.map(|bio| bio.to_string()))
             .bind(id.as_bytes().to_vec())
             .execute(&self.pool)
             .await

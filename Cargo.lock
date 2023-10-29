@@ -2145,7 +2145,6 @@ dependencies = [
  "futures",
  "humantime-serde",
  "jwt-simple",
- "log",
  "poem",
  "poem-openapi",
  "regex",

@@ -250,7 +250,7 @@ where
         username: Option<Username>,
         email: Option<EmailAddress>,
         password: Option<Password>,
-        bio: Option<Bio>,
+        bio: Option<Option<Bio>>,
     ) -> Result<User, UpdateUserError<U::Error>> {
         let salt = SaltString::generate(&mut OsRng);
         let password_hash = password
