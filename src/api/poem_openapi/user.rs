@@ -12,7 +12,10 @@ use crate::{
 };
 use poem::{error::InternalServerError, Error, Result};
 use poem_openapi::{
-    auth::Bearer, payload::Json, types::Email, ApiResponse, Object, OpenApi, SecurityScheme,
+    auth::Bearer,
+    payload::Json,
+    types::{Email, MaybeUndefined},
+    ApiResponse, Object, OpenApi, SecurityScheme,
 };
 use std::fmt::Display;
 use tracing::{error, warn};
@@ -92,9 +95,10 @@ where
             .transpose()
             .map_err(UpdateUserResponse::unprocessable_entity)?;
         let bio = bio
-            .map(TryInto::try_into)
+            .map_value(TryInto::try_into)
             .transpose()
-            .map_err(UpdateUserResponse::unprocessable_entity)?;
+            .map_err(UpdateUserResponse::unprocessable_entity)?
+            .into();
 
         let user = self
             .user_service
@@ -249,14 +253,13 @@ struct UpdateUserRequest {
     user: UpdateUser,
 }
 
-/// Update for the currently logged in user. As `bio` is optional in [User], `None` means deleting
-/// the current `bio`.
+/// Update for the currently logged in user.
 #[derive(Debug, Object)]
 pub struct UpdateUser {
     username: Option<String>,
     email: Option<Email>,
     password: Option<SecretString>,
-    bio: Option<String>,
+    bio: MaybeUndefined<String>,
 }
 
 #[derive(Debug, ApiResponse)]

@@ -35,7 +35,7 @@ pub trait UserRepository: Send + Sync + 'static {
         username: Option<Username>,
         email: Option<EmailAddress>,
         password_hash: Option<SecretString>,
-        bio: Option<Bio>,
+        bio: Option<Option<Bio>>,
     ) -> impl Future<Output = Result<(), UpdateUserError<Self::Error>>> + Send;
 }
 

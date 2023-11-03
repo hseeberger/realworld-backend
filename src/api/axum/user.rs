@@ -18,9 +18,9 @@ use axum::{
 };
 use const_format::concatcp;
 use email_address::EmailAddress;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::{ops::Deref, sync::Arc};
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 use utoipa::{OpenApi, ToSchema};
 
 const USER: &str = "/user";
@@ -97,14 +97,20 @@ struct UpdateUserRequest {
     user: UpdateUser,
 }
 
-/// Update for the currently logged in user. As `bio` is optional in [User], `None` means deleting
-/// the current `bio`.
+/// Update for the currently logged in user.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateUser {
+    #[schema(nullable = false)]
     username: Option<String>,
+
+    #[schema(nullable = false)]
     email: Option<Email>,
+
+    #[schema(nullable = false)]
     password: Option<SecretString>,
-    bio: Option<String>,
+
+    #[serde(default, deserialize_with = "deserialize_some")]
+    bio: Option<Option<String>>,
 }
 
 /// Request to register a new user.
@@ -243,6 +249,8 @@ where
             Error::from(StatusCode::UNAUTHORIZED)
         })?;
 
+    debug!(?request.user);
+
     let UpdateUser {
         username,
         email,
@@ -263,7 +271,7 @@ where
         .transpose()
         .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
     let bio = bio
-        .map(|bio| bio.try_into())
+        .map(|bio| bio.map(TryInto::try_into).transpose())
         .transpose()
         .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
 
@@ -420,4 +428,13 @@ where
         })?;
 
     Ok(Json((user, token).into()))
+}
+
+/// Any value that is present is considered `Some`` value, including `null`.
+fn deserialize_some<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    T: Deserialize<'de>,
+    D: Deserializer<'de>,
+{
+    Deserialize::deserialize(deserializer).map(Some)
 }
