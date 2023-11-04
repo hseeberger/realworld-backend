@@ -31,7 +31,7 @@ docker framework="axum" tag="latest":
 	[ "{{framework}}" = "axum" ] || [ "{{framework}}" = "poem-openapi" ]
 	docker build \
 		--build-arg FRAMEWORK={{framework}} \
-		-t hseeberger/realworld-backend:{{tag}}-{{framework}} \
+		-t hseeberger/realworld-backend-{{framework}}:{{tag}} \
 		.
 
 run framework="axum" port="8080":
