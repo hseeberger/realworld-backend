@@ -1,9 +1,8 @@
 use crate::domain::{
-    user::{Bio, User, UserAndPasswordHash, Username},
+    user::{Bio, Email, User, UserAndPasswordHash, Username},
     SecretString,
 };
 use anyhow::Result;
-use email_address::EmailAddress;
 use std::{fmt::Debug, future::Future};
 use thiserror::Error;
 use uuid::Uuid;
@@ -18,14 +17,14 @@ pub trait UserRepository: Send + Sync + 'static {
 
     fn find_user_and_password_hash_by_email(
         &self,
-        email: &EmailAddress,
+        email: &Email,
     ) -> impl Future<Output = Result<Option<UserAndPasswordHash>, ImplError<Self::Error>>> + Send;
 
     fn add_user(
         &self,
         id: Uuid,
         username: &Username,
-        email: &EmailAddress,
+        email: &Email,
         password_hash: &SecretString,
     ) -> impl Future<Output = Result<(), AddUserError<Self::Error>>> + Send;
 
@@ -33,7 +32,7 @@ pub trait UserRepository: Send + Sync + 'static {
         &self,
         id: Uuid,
         username: Option<Username>,
-        email: Option<EmailAddress>,
+        email: Option<Email>,
         password_hash: Option<SecretString>,
         bio: Option<Option<Bio>>,
     ) -> impl Future<Output = Result<(), UpdateUserError<Self::Error>>> + Send;

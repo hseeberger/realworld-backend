@@ -16,7 +16,7 @@ use axum::{
     Json, Router, Server,
 };
 use serde::Serialize;
-use std::{fmt::Display, sync::Arc, time::Duration};
+use std::{error::Error as StdError, sync::Arc, time::Duration};
 use tokio::{
     signal::unix::{signal, SignalKind},
     time,
@@ -37,12 +37,17 @@ use utoipa_swagger_ui::SwaggerUi;
 
 #[derive(Debug, OpenApi)]
 #[openapi(
-    components(schemas(GenericError, GenericErrorBody, SecretString)),
+    components(
+        schemas(
+            Conflict,
+            SecretString,
+            UnprocessableEntity,
+        )
+    ),
     modifiers(&SecurityAddon),
 )]
 pub struct ApiDoc;
 
-#[allow(dead_code)]
 pub async fn serve<U>(
     config: Config,
     user_service: UserService<U>,
@@ -96,48 +101,47 @@ struct AppState<U> {
 
 #[derive(Debug)]
 enum Error {
-    Status(StatusCode),
-    StatusAndContents(StatusCode, Vec<String>),
-}
-
-impl From<StatusCode> for Error {
-    fn from(status: StatusCode) -> Self {
-        Self::Status(status)
-    }
-}
-
-impl<E> From<(StatusCode, E)> for Error
-where
-    E: Display,
-{
-    fn from((status, error): (StatusCode, E)) -> Self {
-        Self::StatusAndContents(status, vec![error.to_string()])
-    }
+    Unauthorized,
+    NotFound,
+    Conflict(Box<dyn StdError>),
+    InvalidInput(Vec<Box<dyn StdError>>),
+    Internal,
 }
 
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
         match self {
-            Error::Status(status) => status.into_response(),
+            Error::Unauthorized => StatusCode::UNAUTHORIZED.into_response(),
 
-            Error::StatusAndContents(status, contents) => {
-                let generic_error = GenericError {
-                    errors: GenericErrorBody { body: contents },
-                };
-                (status, Json(generic_error)).into_response()
+            Error::NotFound => StatusCode::NOT_FOUND.into_response(),
+
+            Error::Conflict(error) => {
+                let error = error.to_string();
+                (StatusCode::CONFLICT, Json(Conflict { error })).into_response()
             }
+
+            Error::InvalidInput(errors) => {
+                let errors = errors.into_iter().map(|error| error.to_string()).collect();
+                (
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    Json(UnprocessableEntity { errors }),
+                )
+                    .into_response()
+            }
+
+            Error::Internal => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
         }
     }
 }
 
 #[derive(Debug, Serialize, ToSchema)]
-struct GenericError {
-    errors: GenericErrorBody,
+struct Conflict {
+    error: String,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
-struct GenericErrorBody {
-    body: Vec<String>,
+struct UnprocessableEntity {
+    errors: Vec<String>,
 }
 
 struct SecurityAddon;

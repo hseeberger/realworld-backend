@@ -12,12 +12,11 @@ use crate::{
 use axum::{
     extract::State,
     headers::{authorization::Bearer, Authorization},
-    http::StatusCode,
     routing::{get, post},
     Json, Router, TypedHeader,
 };
 use const_format::concatcp;
-use email_address::EmailAddress;
+use frunk::{hlist_pat, validated::IntoValidated};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::{ops::Deref, sync::Arc};
 use tracing::{debug, error, warn};
@@ -31,9 +30,24 @@ const TAG: &str = "user"; // TODO: not yet possible to be used for `openapi::tag
 
 #[derive(Debug, OpenApi)]
 #[openapi(
-    paths(get_current_user, update_current_user, register_user, login_user),
+    paths(
+        get_current_user,
+        login_user,
+        register_user,
+        update_current_user,
+    ),
     components(
-        schemas(UserResponse, User, UpdateUserRequest, UpdateUser, RegisterUserRequest, NewUser, LoginRequest, Credentials, Email)
+        schemas(
+            Credentials,
+            Email,
+            LoginRequest,
+            NewUser,
+            RegisterUserRequest,
+            UpdateUser,
+            UpdateUserRequest,
+            User,
+            UserResponse,
+        )
     ),
     tags(
         (name = "user", description = "Users and authentication.")
@@ -84,7 +98,7 @@ impl From<(domain::user::User, SecretString)> for User {
         let (_id, username, email, bio) = domain_user.dissolve();
         Self {
             username: username.into(),
-            email: email.into(),
+            email: Email(email.into()),
             token: token.expose_secret().to_owned(),
             bio: bio.map(|b| b.into()),
         }
@@ -145,12 +159,6 @@ struct Credentials {
 #[schema(value_type = String, format = "email", example = "name@realworld.dev")]
 struct Email(String);
 
-impl From<EmailAddress> for Email {
-    fn from(email_address: EmailAddress) -> Self {
-        Self(email_address.into())
-    }
-}
-
 impl Deref for Email {
     type Target = str;
 
@@ -181,7 +189,7 @@ where
     let token = bearer
         .ok_or_else(|| {
             warn!(error = "missing token");
-            Error::from(StatusCode::UNAUTHORIZED)
+            Error::Unauthorized
         })
         .map(|TypedHeader(Authorization(bearer))| bearer.token().into())?;
 
@@ -190,7 +198,7 @@ where
         .verify_token(&token)
         .map_err(|error| {
             warn!(error = format!("{error:#}"), "cannot verify token");
-            Error::from(StatusCode::UNAUTHORIZED)
+            Error::Unauthorized
         })?;
 
     let user = app_state
@@ -200,12 +208,12 @@ where
         .map_err(|error| match error {
             GetUserError::UnknownUser(id) => {
                 error!(%id, error = format!("{error:#}"), "current user not found");
-                Error::from(StatusCode::NOT_FOUND)
+                Error::Internal
             }
 
             GetUserError::UserRepository(error) => {
                 error!(%id, error = format!("{error:#}"), "cannot get current user");
-                Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+                Error::Internal
             }
         })?;
 
@@ -218,11 +226,11 @@ where
     path = USER,
     security(("bearer" = [])),
     responses(
-        (status = 200, description = "Updated currently logged-in user.", body = UserResponse),
+        (status = 200, description = "Currently logged-in user.", body = UserResponse),
         (status = 401, description = "Unauthorized."),
-        (status = 404, description = "Not found."),
-        (status = 409, description = "Conflict."),
-        (status = 422, description = "Invalid user update data.", body = GenericError),
+        (status = 404, description = "User not found."),
+        (status = 409, description = "Conflicting user data."),
+        (status = 422, description = "Invalid user data.", body = UnprocessableEntity),
     ),
     tag = TAG
 )]
@@ -237,7 +245,7 @@ where
     let token = bearer
         .ok_or_else(|| {
             warn!(error = "missing token");
-            Error::from(StatusCode::UNAUTHORIZED)
+            Error::Unauthorized
         })
         .map(|TypedHeader(Authorization(bearer))| bearer.token().into())?;
 
@@ -246,7 +254,7 @@ where
         .verify_token(&token)
         .map_err(|error| {
             warn!(error = format!("{error:#}"), "cannot verify token");
-            Error::from(StatusCode::UNAUTHORIZED)
+            Error::Unauthorized
         })?;
 
     debug!(?request.user);
@@ -261,19 +269,24 @@ where
     let username = username
         .map(TryInto::try_into)
         .transpose()
-        .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
+        .map_err(Into::into);
     let email = email
         .map(|email| email.parse())
         .transpose()
-        .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
+        .map_err(Into::into);
     let password = password
         .map(TryInto::try_into)
         .transpose()
-        .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
+        .map_err(Into::into);
     let bio = bio
         .map(|bio| bio.map(TryInto::try_into).transpose())
         .transpose()
-        .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
+        .map_err(Into::into);
+
+    let (username, email, password, bio) = (username.into_validated() + email + password + bio)
+        .into_result()
+        .map(|hlist_pat![username, email, password, bio]| (username, email, password, bio))
+        .map_err(Error::InvalidInput)?;
 
     let user = app_state
         .user_service
@@ -282,21 +295,21 @@ where
         .map_err(|error| match error {
             UpdateUserError::UnknownUser(id) => {
                 error!(%id, error = format!("{error:#}"), "current user not found");
-                Error::from(StatusCode::NOT_FOUND)
+                Error::NotFound
             }
 
             UpdateUserError::EmailTaken | UpdateUserError::UsernameTaken => {
-                (StatusCode::CONFLICT, error).into()
+                Error::Conflict(error.into())
             }
 
             UpdateUserError::PasswordHash(error) => {
                 error!(%id, error = format!("{error:#}"), "cannot get current user");
-                Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+                Error::Internal
             }
 
             UpdateUserError::UserRepository(error) => {
                 error!(%id, error = format!("{error:#}"), "cannot get current user");
-                Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+                Error::Internal
             }
         })?;
 
@@ -308,9 +321,9 @@ where
     post,
     path = USERS,
     responses(
-        (status = 201, description = "Successfully registered user.", body = UserResponse),
-        (status = 409, description = "Conflicting data for new user to be registered.", body = GenericError),
-        (status = 422, description = "Invalid data for new user to be registered.", body = GenericError),
+        (status = 201, description = "Registered user.", body = UserResponse),
+        (status = 409, description = "Conflicting user data.", body = Conflict),
+        (status = 422, description = "Invalid user data.", body = UnprocessableEntity),
     ),
     tag = TAG
 )]
@@ -327,15 +340,14 @@ where
         password,
     } = request.user;
 
-    let username = username
-        .try_into()
-        .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
-    let email = email
-        .parse()
-        .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
-    let password = password
-        .try_into()
-        .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
+    let username = username.try_into().map_err(Into::into);
+    let email = email.parse().map_err(Into::into);
+    let password = password.try_into().map_err(Into::into);
+
+    let (username, email, password) = (username.into_validated() + email + password)
+        .into_result()
+        .map(|hlist_pat![username, email, password]| (username, email, password))
+        .map_err(Error::InvalidInput)?;
 
     let user = app_state
         .user_service
@@ -343,17 +355,17 @@ where
         .await
         .map_err(|error| match error {
             RegisterUserError::EmailTaken | RegisterUserError::UsernameTaken => {
-                (StatusCode::CONFLICT, error).into()
+                Error::Conflict(error.into())
             }
 
             RegisterUserError::PasswordHash(error) => {
                 error!(error = format!("{error:#}"), "cannot register user");
-                Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+                Error::Internal
             }
 
             RegisterUserError::UserRepository(error) => {
                 error!(error = format!("{error:#}"), "cannot register user");
-                Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+                Error::Internal
             }
         })?;
 
@@ -362,7 +374,7 @@ where
         .create_token(user.id())
         .map_err(|error| {
             error!(?user, error = format!("{error:#}"), "cannot create token");
-            Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+            Error::Internal
         })?;
 
     Ok(Json((user, token).into()))
@@ -373,10 +385,10 @@ where
     post,
     path = USERS_LOGIN,
     responses(
-        (status = 201, description = "Successfully registered user.", body = UserResponse),
+        (status = 201, description = "Registered user.", body = UserResponse),
         (status = 401, description = "Unauthorized."),
-        (status = 404, description = "Not found."),
-        (status = 422, description = "Invalid credentials.", body = GenericError),
+        (status = 404, description = "User not found."),
+        (status = 422, description = "Invalid credentials.", body = UnprocessableEntity),
     ),
     tag = TAG
 )]
@@ -389,12 +401,13 @@ where
 {
     let Credentials { email, password } = request.user;
 
-    let email = email
-        .parse()
-        .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
-    let password = password
-        .try_into()
-        .map_err(|error| Error::from((StatusCode::UNPROCESSABLE_ENTITY, error)))?;
+    let email = email.parse().map_err(Into::into);
+    let password = password.try_into().map_err(Into::into);
+
+    let (email, password) = (email.into_validated() + password)
+        .into_result()
+        .map(|hlist_pat![email, password]| (email, password))
+        .map_err(Error::InvalidInput)?;
 
     let user = app_state
         .user_service
@@ -403,19 +416,19 @@ where
         .map_err(|error| match error {
             LoginError::UnknownUser(ref email) => {
                 error!(%email, error = format!("{error:#}"), "user not found");
-                Error::from(StatusCode::NOT_FOUND)
+                Error::NotFound
             }
 
-            LoginError::InvalidCredentials => Error::from(StatusCode::UNAUTHORIZED),
+            LoginError::InvalidCredentials => Error::Unauthorized,
 
             LoginError::PasswordHash(error) => {
                 error!(%email, error = format!("{error:#}"), "cannot login user");
-                Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+                Error::Internal
             }
 
             LoginError::UserRepository(error) => {
                 error!(%email, error = format!("{error:#}"), "cannot login user");
-                Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+                Error::Internal
             }
         })?;
 
@@ -424,7 +437,7 @@ where
         .create_token(user.id())
         .map_err(|error| {
             error!(?user, error = format!("{error:#}"), "cannot create token");
-            Error::from(StatusCode::INTERNAL_SERVER_ERROR)
+            Error::Internal
         })?;
 
     Ok(Json((user, token).into()))

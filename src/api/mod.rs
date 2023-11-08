@@ -30,15 +30,9 @@ pub async fn serve<U>(
 where
     U: UserRepository,
 {
-    #[cfg(any(
-        not(any(feature = "axum", feature = "poem-openapi")),
-        all(feature = "axum", feature = "poem-openapi"),
-    ))]
-    anyhow::bail!("choose exactly one of axum and poem-openapi features");
-
-    #[cfg(all(feature = "axum", not(feature = "poem-openapi")))]
+    #[cfg(feature = "axum")]
     return axum::serve(config, user_service, token_factory).await;
 
-    #[cfg(all(feature = "poem-openapi", not(feature = "axum")))]
+    #[cfg(feature = "poem-openapi")]
     return poem_openapi::serve(config, user_service, token_factory).await;
 }

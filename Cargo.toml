@@ -18,6 +18,7 @@ argon2             = { version = "0.5" }
 base64             = { version = "0.21" }
 configured         = { version = "0.7" }
 email_address      = { version = "0.2" }
+frunk              = { version = "0.4" }
 futures            = { version = "0.3" }
 humantime-serde    = { version = "1.1" }
 jwt-simple         = { version = "0.11" }
