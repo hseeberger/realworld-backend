@@ -36,7 +36,7 @@ static PASSWORD_SPECIAL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(password).expect("create regex for numeric password")
 });
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct User {
     id: Uuid,
     username: Username,
@@ -69,7 +69,7 @@ impl User {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Username(String);
 
 impl TryFrom<String> for Username {
@@ -114,7 +114,7 @@ impl Display for Username {
 #[error("invalid username {0}: length must be 3 or more characters")]
 pub struct InvalidUsername(String);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Bio(String);
 
 impl TryFrom<String> for Bio {
@@ -160,7 +160,7 @@ impl Display for Bio {
 }
 
 /// A password.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Password(SecretString);
 
 impl Password {
@@ -199,7 +199,7 @@ impl FromStr for Password {
 #[error("invalid password: at least eight characters, one character, one digit and one special character out of @#$%^&*-_+=? required")]
 pub struct InvalidPassword;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct UserAndPasswordHash {
     user: User,
     password_hash: SecretString,

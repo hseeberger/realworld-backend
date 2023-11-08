@@ -68,7 +68,7 @@ impl Debug for TokenFactory {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
     key: SecretString,

@@ -48,7 +48,7 @@ async fn main() {
     };
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 struct Config {
     api: api::Config,

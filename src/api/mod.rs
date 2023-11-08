@@ -12,7 +12,7 @@ pub mod axum;
 #[cfg(feature = "poem-openapi")]
 pub mod poem_openapi;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
     addr: IpAddr,

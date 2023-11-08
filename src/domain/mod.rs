@@ -4,7 +4,7 @@ use secrecy::ExposeSecret;
 use serde::Deserialize;
 
 /// New type for `secrecy::SecretString`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "axum", schema(value_type = String, format = Password, example = "abcd567+"))]
 pub struct SecretString(secrecy::SecretString);

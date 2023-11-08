@@ -144,7 +144,7 @@ impl UserRepository for SqliteRepository {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
     cnn_url: String,
@@ -271,7 +271,7 @@ mod tests {
             .await;
         assert_matches!(result, Ok(()));
 
-        let user = User::new(id, username.clone(), email.clone(), None);
+        let user = User::new(id, "user1".parse()?, email.clone(), None);
 
         let result = repository.user_by_id(id).await;
         assert_matches!(result, Ok(Some(u)) if u == user);
