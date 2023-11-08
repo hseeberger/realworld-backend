@@ -18,7 +18,7 @@ use axum::{
 use const_format::concatcp;
 use frunk::{hlist_pat, validated::IntoValidated};
 use serde::{Deserialize, Deserializer, Serialize};
-use std::{ops::Deref, sync::Arc};
+use std::sync::Arc;
 use tracing::{error, warn};
 use utoipa::{OpenApi, ToSchema};
 
@@ -42,10 +42,12 @@ const TAG: &str = "user"; // TODO: not yet possible to be used for `openapi::tag
             Email,
             LoginRequest,
             NewUser,
+            Password,
             RegisterUserRequest,
             UpdateUser,
             UpdateUserRequest,
             User,
+            Username,
             UserResponse,
         )
     ),
@@ -71,9 +73,10 @@ where
         .route(USERS_LOGIN, post(login_user))
 }
 
-/// A user.
+/// User.
 #[derive(Debug, Serialize, ToSchema)]
 struct UserResponse {
+    /// User.
     user: User,
 }
 
@@ -84,20 +87,17 @@ impl From<(domain::user::User, SecretString)> for UserResponse {
     }
 }
 
-/// A user.
+/// User.
 #[derive(Debug, Serialize, ToSchema)]
 struct User {
-    /// Unique unsername.
-    #[schema(value_type = String, format = "username", example = "user")]
-    username: String,
+    username: Username,
 
-    /// Unique email address, used for login.
     email: Email,
 
-    /// Bearer token for authentication.
+    /// Bearer token used for authentication.
     token: String,
 
-    /// Optional bio.
+    /// Bio.
     bio: Option<String>,
 }
 
@@ -106,7 +106,7 @@ impl From<(domain::user::User, SecretString)> for User {
         let (_id, username, email, bio) = domain_user.dissolve();
         Self {
             username: username.into(),
-            email: Email(email.into()),
+            email: email.into(),
             token: token.expose_secret().to_owned(),
             bio: bio.map(|b| b.into()),
         }
@@ -123,13 +123,13 @@ struct UpdateUserRequest {
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateUser {
     #[schema(nullable = false)]
-    username: Option<String>,
+    username: Option<Username>,
 
     #[schema(nullable = false)]
     email: Option<Email>,
 
     #[schema(nullable = false)]
-    password: Option<SecretString>,
+    password: Option<Password>,
 
     #[serde(default, deserialize_with = "deserialize_some")]
     bio: Option<Option<String>>,
@@ -144,9 +144,9 @@ struct RegisterUserRequest {
 /// New user to be registered.
 #[derive(Debug, Deserialize, ToSchema)]
 struct NewUser {
-    username: String,
+    username: Username,
     email: Email,
-    password: SecretString,
+    password: Password,
 }
 
 /// Request to login an existing user.
@@ -159,21 +159,35 @@ struct LoginRequest {
 #[derive(Debug, Deserialize, ToSchema)]
 struct Credentials {
     email: Email,
-    password: SecretString,
+    password: Password,
 }
 
-/// An email address.
+/// Unique unsername.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-#[schema(value_type = String, format = "email", example = "name@realworld.dev")]
-struct Email(String);
+#[schema(value_type = String, format = "username", example = "john.doe")]
+struct Username(String);
 
-impl Deref for Email {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl From<domain::user::Username> for Username {
+    fn from(username: domain::user::Username) -> Self {
+        Username(username.into())
     }
 }
+
+/// Unique email address, used for login.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[schema(value_type = String, format = "email", example = "john.doe@realworld.dev")]
+struct Email(String);
+
+impl From<domain::user::Email> for Email {
+    fn from(email: domain::user::Email) -> Self {
+        Email(email.into())
+    }
+}
+
+/// Password.
+#[derive(Debug, Deserialize, ToSchema)]
+#[schema(value_type = String, format = Password, example = "abcd567+")]
+struct Password(SecretString);
 
 /// Get the currently logged-in user.
 #[utoipa::path(
@@ -273,15 +287,15 @@ where
     } = request.user;
 
     let username = username
-        .map(TryInto::try_into)
+        .map(|Username(u)| u.try_into())
         .transpose()
         .map_err(Into::into);
     let email = email
-        .map(|email| email.parse())
+        .map(|Email(e)| e.try_into())
         .transpose()
         .map_err(Into::into);
     let password = password
-        .map(TryInto::try_into)
+        .map(|Password(p)| p.try_into())
         .transpose()
         .map_err(Into::into);
     let bio = bio
@@ -341,9 +355,9 @@ where
     U: UserRepository,
 {
     let NewUser {
-        username,
-        email,
-        password,
+        username: Username(username),
+        email: Email(email),
+        password: Password(password),
     } = request.user;
 
     let username = username.try_into().map_err(Into::into);
@@ -405,7 +419,10 @@ async fn login_user<U>(
 where
     U: UserRepository,
 {
-    let Credentials { email, password } = request.user;
+    let Credentials {
+        email: Email(email),
+        password: Password(password),
+    } = request.user;
 
     let email = email.parse().map_err(Into::into);
     let password = password.try_into().map_err(Into::into);

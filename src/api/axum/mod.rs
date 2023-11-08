@@ -2,10 +2,7 @@ mod user;
 
 use crate::{
     api::Config,
-    domain::{
-        user::{user_repository::UserRepository, UserService},
-        SecretString,
-    },
+    domain::user::{user_repository::UserRepository, UserService},
     infra::token_factory::TokenFactory,
 };
 use anyhow::{Context, Result};
@@ -40,7 +37,6 @@ use utoipa_swagger_ui::SwaggerUi;
     components(
         schemas(
             Conflict,
-            SecretString,
             UnprocessableEntity,
         )
     ),
