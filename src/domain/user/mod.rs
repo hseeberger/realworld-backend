@@ -40,12 +40,12 @@ static PASSWORD_SPECIAL: LazyLock<Regex> = LazyLock::new(|| {
 pub struct User {
     id: Uuid,
     username: Username,
-    email: EmailAddress,
+    email: Email,
     bio: Option<Bio>,
 }
 
 impl User {
-    pub fn new(id: Uuid, username: Username, email: EmailAddress, bio: Option<Bio>) -> Self {
+    pub fn new(id: Uuid, username: Username, email: Email, bio: Option<Bio>) -> Self {
         Self {
             id,
             username,
@@ -58,7 +58,7 @@ impl User {
         self.id
     }
 
-    pub fn dissolve(self) -> (Uuid, Username, EmailAddress, Option<Bio>) {
+    pub fn dissolve(self) -> (Uuid, Username, Email, Option<Bio>) {
         let Self {
             id,
             username,
@@ -113,6 +113,49 @@ impl Display for Username {
 #[derive(Debug, Error)]
 #[error("invalid username {0}: length must be 3 or more characters")]
 pub struct InvalidUsername(String);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Email(String);
+
+impl TryFrom<String> for Email {
+    type Error = InvalidEmail;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        s.parse()
+    }
+}
+
+impl FromStr for Email {
+    type Err = InvalidEmail;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        EmailAddress::from_str(s)
+            .map_err(|error| InvalidEmail(s.to_owned(), error.to_string()))
+            .map(|address| Self(address.to_string()))
+    }
+}
+
+impl From<Email> for String {
+    fn from(email: Email) -> Self {
+        email.0
+    }
+}
+
+impl AsRef<str> for Email {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Display for Email {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, Error)]
+#[error("invalid email {0}: {1}")]
+pub struct InvalidEmail(String, String);
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Bio(String);
@@ -248,7 +291,7 @@ where
         &self,
         id: Uuid,
         username: Option<Username>,
-        email: Option<EmailAddress>,
+        email: Option<Email>,
         password: Option<Password>,
         bio: Option<Option<Bio>>,
     ) -> Result<User, UpdateUserError<U::Error>> {
@@ -274,7 +317,7 @@ where
     pub async fn register_user(
         &self,
         username: Username,
-        email: EmailAddress,
+        email: Email,
         password: Password,
     ) -> Result<User, RegisterUserError<U::Error>> {
         let id = Uuid::now_v7();
@@ -296,7 +339,7 @@ where
 
     pub async fn login_user(
         &self,
-        email: &EmailAddress,
+        email: &Email,
         password: &Password,
     ) -> Result<User, LoginError<U::Error>> {
         let (user, password_hash) = self
@@ -395,7 +438,7 @@ impl<E> From<AddUserError<E>> for RegisterUserError<E> {
 #[derive(Debug, Error)]
 pub enum LoginError<E> {
     #[error("unknown user for email {0}")]
-    UnknownUser(EmailAddress),
+    UnknownUser(Email),
 
     #[error("invalid credentials")]
     InvalidCredentials,
@@ -414,35 +457,62 @@ mod tests {
 
     #[test]
     fn test_username_try_from() {
-        let username_str = "ab".to_string();
+        let username = "ab".to_string();
         assert_matches!(
-            Username::try_from(username_str.clone()),
-            Err(InvalidUsername(u)) if u == username_str
+            Username::try_from(username.clone()),
+            Err(InvalidUsername(u)) if u == username
         );
 
-        let username_str = "abc".to_string();
+        let username = "abc".to_string();
         assert_matches!(
-            Username::try_from(username_str.clone()),
-            Ok(Username(u)) if u == username_str
+            Username::try_from(username.clone()),
+            Ok(Username(u)) if u == username
         );
     }
 
     #[test]
     fn test_username_from_str() {
-        let username_str = "ab";
-        assert_matches!(Username::from_str(username_str), Err(InvalidUsername(u)) if u == username_str);
+        let username = "ab";
+        assert_matches!(Username::from_str(username), Err(InvalidUsername(u)) if u == username);
 
-        let username_str = "abc";
-        assert_matches!(Username::from_str(username_str), Ok(Username(u)) if u == username_str);
+        let username = "abc";
+        assert_matches!(Username::from_str(username), Ok(Username(u)) if u == username);
     }
 
     #[test]
     fn test_string_from_username() {
-        let username_str = "abc";
-        assert_eq!(
-            String::from(Username::from_str(username_str).unwrap()),
-            username_str
+        let username = "abc";
+        assert_eq!(String::from(Username(username.to_owned())), username);
+    }
+
+    #[test]
+    fn test_email_try_from() {
+        let email = "e".to_string();
+        assert_matches!(
+            Email::try_from(email.clone()),
+            Err(InvalidEmail(e, _)) if e == email
         );
+
+        let email = "user@realworld.dev".to_string();
+        assert_matches!(
+            Email::try_from(email.clone()),
+            Ok(Email(e)) if e == email
+        );
+    }
+
+    #[test]
+    fn test_email_from_str() {
+        let email = "e";
+        assert_matches!(Email::from_str(email), Err(InvalidEmail(e, _)) if e == email);
+
+        let email = "user@realworld.dev".to_string();
+        assert_matches!(Email::from_str(&email), Ok(Email(e)) if e == email);
+    }
+
+    #[test]
+    fn test_string_from_email() {
+        let email = "user@realworld.dev";
+        assert_eq!(String::from(Email(email.to_owned())), email);
     }
 
     #[test]

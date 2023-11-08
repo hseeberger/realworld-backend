@@ -1,12 +1,11 @@
 use crate::domain::{
     user::{
         user_repository::{AddUserError, ImplError, UpdateUserError, UserRepository},
-        Bio, User, UserAndPasswordHash, Username,
+        Bio, Email, User, UserAndPasswordHash, Username,
     },
     SecretString,
 };
 use anyhow::{Context, Result};
-use email_address::EmailAddress;
 use serde::Deserialize;
 use sqlx::{
     error::DatabaseError,
@@ -54,7 +53,7 @@ impl UserRepository for SqliteRepository {
 
     async fn find_user_and_password_hash_by_email(
         &self,
-        email: &EmailAddress,
+        email: &Email,
     ) -> Result<Option<UserAndPasswordHash>, ImplError<Self::Error>> {
         sqlx::query_as("SELECT * FROM user where email = ?")
             .bind(email.as_ref())
@@ -67,7 +66,7 @@ impl UserRepository for SqliteRepository {
         &self,
         id: Uuid,
         username: &Username,
-        email: &EmailAddress,
+        email: &Email,
         password_hash: &SecretString,
     ) -> Result<(), AddUserError<Self::Error>> {
         sqlx::query("INSERT INTO user (id, username, email, password_hash) VALUES(?, ?, ?, ?)")
@@ -95,7 +94,7 @@ impl UserRepository for SqliteRepository {
         &self,
         id: Uuid,
         username: Option<Username>,
-        email: Option<EmailAddress>,
+        email: Option<Email>,
         password_hash: Option<SecretString>,
         bio: Option<Option<Bio>>,
     ) -> Result<(), UpdateUserError<Self::Error>> {

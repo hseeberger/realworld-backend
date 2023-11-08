@@ -14,7 +14,6 @@ use std::fmt::Display;
 use thiserror::Error;
 use tokio::signal::unix::{signal, SignalKind};
 
-#[allow(dead_code)]
 pub async fn serve<U>(
     config: Config,
     user_service: UserService<U>,
