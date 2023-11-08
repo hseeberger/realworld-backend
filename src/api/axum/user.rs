@@ -19,7 +19,7 @@ use const_format::concatcp;
 use frunk::{hlist_pat, validated::IntoValidated};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::{ops::Deref, sync::Arc};
-use tracing::{debug, error, warn};
+use tracing::{error, warn};
 use utoipa::{OpenApi, ToSchema};
 
 const USER: &str = "/user";
@@ -87,9 +87,17 @@ impl From<(domain::user::User, SecretString)> for UserResponse {
 /// A user.
 #[derive(Debug, Serialize, ToSchema)]
 struct User {
+    /// Unique unsername.
+    #[schema(value_type = String, format = "username", example = "user")]
     username: String,
+
+    /// Unique email address, used for login.
     email: Email,
+
+    /// Bearer token for authentication.
     token: String,
+
+    /// Optional bio.
     bio: Option<String>,
 }
 
@@ -256,8 +264,6 @@ where
             warn!(error = format!("{error:#}"), "cannot verify token");
             Error::Unauthorized
         })?;
-
-    debug!(?request.user);
 
     let UpdateUser {
         username,
