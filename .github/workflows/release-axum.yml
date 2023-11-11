@@ -12,22 +12,14 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
 
-      - name: Determine toolchain
-        run: |
-          if [ -z $IS_SCHEDULE ]; then
-            toolchain=$(grep channel rust-toolchain.toml | sed -r 's/channel = "(.*)"/\1/')
-          else
-            toolchain='nightly'
-          fi
-          echo "setting RUSTUP_TOOLCHAIN to $toolchain"
-          echo "RUSTUP_TOOLCHAIN=$toolchain" >> "$GITHUB_ENV"
-
       - name: Install Rust toolchain
         run: |
+          toolchain=$(grep channel rust-toolchain.toml | sed -r 's/channel = "(.*)"/\1/')
+          echo "installing toolchain $toolchain from rust-toolchain.toml"
           rm /home/runner/.cargo/bin/rustfmt
-          rustup toolchain install $RUSTUP_TOOLCHAIN --profile minimal
-          rustup component add --toolchain $RUSTUP_TOOLCHAIN rustfmt
-          rustup component add --toolchain $RUSTUP_TOOLCHAIN clippy
+          rustup toolchain install $toolchain --profile minimal
+          rustup component add --toolchain $toolchain rustfmt
+          rustup component add --toolchain $toolchain clippy
 
       - name: Install just
         uses: taiki-e/install-action@v2
