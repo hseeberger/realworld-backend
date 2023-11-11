@@ -27,7 +27,7 @@ jobs:
 
       - name: Install Rust toolchain
         env:
-          nightly: ${{ (github.event.inputs.nightly || github.event_name == 'schedule') && 'true' || '' }}
+          nightly: ${{ (github.event.inputs.nightly == true || github.event_name == 'schedule') && 'true' || '' }}
         run: |
           if [ -z $nightly ]; then
             toolchain=$(grep channel rust-toolchain.toml | sed -r 's/channel = "(.*)"/\1/')
