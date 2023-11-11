@@ -1,28 +1,28 @@
 set shell := ["bash", "-uc"]
 
 check:
-	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
+	@echo "RUSTUP_TOOLCHAIN is ${RUSTUP_TOOLCHAIN:-not set}"
 	cargo check --features axum --tests
 	cargo check --features poem-openapi --tests
 
 fmt:
-	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
+	@echo "RUSTUP_TOOLCHAIN is ${RUSTUP_TOOLCHAIN:-not set}"
 	cargo fmt
 
 fmt-check:
-	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
+	@echo "RUSTUP_TOOLCHAIN is ${RUSTUP_TOOLCHAIN:-not set}"
 	cargo fmt --check
 
 lint:
-	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
+	@echo "RUSTUP_TOOLCHAIN is ${RUSTUP_TOOLCHAIN:-not set}"
 	cargo clippy --all-features --no-deps -- -D warnings
 
 test:
-	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
+	@echo "RUSTUP_TOOLCHAIN is ${RUSTUP_TOOLCHAIN:-not set}"
 	cargo test --all-features
 
 fix:
-	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
+	@echo "RUSTUP_TOOLCHAIN is ${RUSTUP_TOOLCHAIN:-not set}"
 	cargo fix --allow-dirty --allow-staged
 
 all: check fmt lint test
@@ -35,7 +35,7 @@ docker framework="axum" tag="latest":
 		.
 
 run framework="axum" port="8080":
-	@echo "using toolchain ${RUSTUP_TOOLCHAIN:-NONE}"
+	@echo "RUSTUP_TOOLCHAIN is ${RUSTUP_TOOLCHAIN:-not set}"
 	[ "{{framework}}" = "axum" ] || [ "{{framework}}" = "poem-openapi" ]
 	RUST_LOG=realworld_backend=debug,info \
 		CONFIG_OVERLAYS=dev \
