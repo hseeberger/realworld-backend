@@ -14,15 +14,8 @@ jobs:
 
       - name: Install Rust toolchain
         run: |
-          if [ -z $IS_SCHEDULE ]; then
-            toolchain=$(grep channel rust-toolchain.toml | sed -r 's/channel = "(.*)"/\1/')
-            echo "installing toolchain $toolchain from rust-toolchain.toml"
-          else
-            toolchain='nightly'
-            echo "installing toolchain nightly"
-            echo "also setting RUSTUP_TOOLCHAIN to nightly"
-            echo "RUSTUP_TOOLCHAIN=nightly" >> "$GITHUB_ENV"
-          fi
+          toolchain=$(grep channel rust-toolchain.toml | sed -r 's/channel = "(.*)"/\1/')
+          echo "installing toolchain $toolchain from rust-toolchain.toml"
           rm /home/runner/.cargo/bin/rustfmt
           rustup toolchain install $toolchain --profile minimal
           rustup component add --toolchain $toolchain rustfmt
