@@ -16,6 +16,7 @@ on:
       nightly:
         description: Use latest nightly
         required: true
+        type: boolean
 
 jobs:
   ci:
@@ -28,7 +29,6 @@ jobs:
         env:
           nightly: ${{ (github.event.inputs.nightly || github.event_name == 'schedule') && 'true' || '' }}
         run: |
-          echo $nightly
           if [ -z $nightly ]; then
             toolchain=$(grep channel rust-toolchain.toml | sed -r 's/channel = "(.*)"/\1/')
             echo "installing toolchain $toolchain from rust-toolchain.toml"
