@@ -3,7 +3,7 @@
 .gitignore
 .vscode
 **/.git
-**/target
+target
 config/dev.yaml
 Dockerfile
 justfile

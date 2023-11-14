@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: realworld
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: realworld-backend-http
+  namespace: realworld
+spec:
+  selector:
+    app: realworld-backend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: realworld-backend
+  namespace: realworld
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: realworld-backend
+  template:
+    metadata:
+      name: realworld-backend
+      namespace: realworld
+      labels:
+        app: realworld-backend
+    spec:
+      containers:
+        - name: realworld-backend
+          image: hseeberger/realworld-backend-axum:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 25m
+              memory: 25Mi
+            limits:
+              cpu: 100m
+              memory: 100Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          env:
+            - name: APP__API__PORT
+              value: "8080"
+            - name: APP__TOKEN_FACTORY__KEY
+              valueFrom:
+                secretKeyRef:
+                  name: token-factory
+                  key: key
+            - name: RUST_LOG
+              value: realworld_backend=debug,tower_http=debug,info
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: realworld-backend-ingress
+  namespace: realworld
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  rules:
+    - host: "realworld.heikoseeberger.de"
+      http:
+        paths:
+          - pathType: ImplementationSpecific
+            path: /api(/|$)(.*)
+            backend:
+              service:
+                name: realworld-backend-http
+                port:
+                  name: http
