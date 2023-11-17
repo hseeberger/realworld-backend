@@ -27,13 +27,6 @@ fix:
 
 all: check fmt lint test
 
-docker framework="axum" tag="latest":
-	[ "{{framework}}" = "axum" ] || [ "{{framework}}" = "poem-openapi" ]
-	docker build \
-		--build-arg FRAMEWORK={{framework}} \
-		-t hseeberger/realworld-backend-{{framework}}:{{tag}} \
-		.
-
 run framework="axum" port="8080":
 	@echo "RUSTUP_TOOLCHAIN is ${RUSTUP_TOOLCHAIN:-not set}"
 	[ "{{framework}}" = "axum" ] || [ "{{framework}}" = "poem-openapi" ]
@@ -42,3 +35,10 @@ run framework="axum" port="8080":
 		APP__API__PORT={{port}} \
 		cargo run --features {{framework}} \
 		| jq
+
+docker framework="axum" tag="latest":
+	[ "{{framework}}" = "axum" ] || [ "{{framework}}" = "poem-openapi" ]
+	docker build \
+		--build-arg FRAMEWORK={{framework}} \
+		-t hseeberger/realworld-backend-{{framework}}:{{tag}} \
+		.
