@@ -25,7 +25,7 @@ RUN chown appuser /usr/local/bin/realworld-backend
 COPY --from=builder /app/config /opt/realworld-backend/config
 RUN chown -R appuser /opt/realworld-backend
 USER appuser
-ENV RUST_LOG="realworld_backend=debug,tower_http=debug,info"
+ENV RUST_LOG="realworld_backend=debug,info"
 WORKDIR /opt/realworld-backend
 ENTRYPOINT ["realworld-backend"]
 EXPOSE 8080/tcp
