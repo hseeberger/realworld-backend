@@ -8,7 +8,7 @@ COPY . .
 RUN \
   --mount=type=cache,target=/app/target/ \
   --mount=type=cache,target=/usr/local/cargo/registry/ \
-  cargo build --locked --release --features ${FRAMEWORK} && \
+  cargo build --release --features ${FRAMEWORK} && \
   cp ./target/release/realworld-backend /app
 
 FROM debian:bookworm-slim AS final
