@@ -380,9 +380,9 @@ dependencies = [
 
 [[package]]
 name = "boring"
-version = "4.1.0"
+version = "4.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12a46ed7bcfc8c7243686b870fb0a500ddca45596806088920429dd50aa4089f"
+checksum = "8fed6dc629997e8c3c4d1dbd59cf748512b9b0e0fbc509cf9b0e2edca9d24d1a"
 dependencies = [
  "bitflags 2.4.1",
  "boring-sys",
@@ -393,9 +393,9 @@ dependencies = [
 
 [[package]]
 name = "boring-sys"
-version = "4.1.0"
+version = "4.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88a25b0f5d733611b9cc685db5df9dabfc8cdf7e1475518f7f966ce5eb8a0365"
+checksum = "91102749c3c99028f344c3bce1dc54b1aac49d52d03c60c75996f81ebdeaa41c"
 dependencies = [
  "bindgen",
  "cmake",
@@ -855,15 +855,15 @@ dependencies = [
  "digest",
  "elliptic-curve",
  "rfc6979",
- "signature 2.2.0",
+ "signature",
  "spki 0.7.2",
 ]
 
 [[package]]
 name = "ed25519-compact"
-version = "2.0.4"
+version = "2.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a3d382e8464107391c8706b4c14b087808ecb909f6c15c34114bc42e53a9e4c"
+checksum = "a667e6426df16c2ac478efa4a439d0e674cba769c5556e8cf221739251640c8c"
 dependencies = [
  "ct-codecs",
  "getrandom",
@@ -1221,8 +1221,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe9006bed769170c11f845cf00c7c1e9092aeb3f268e007c3e760ac68008070f"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "wasi",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -1577,9 +1579,9 @@ dependencies = [
 
 [[package]]
 name = "jwt-simple"
-version = "0.12.1"
+version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5968a303b2c290b91d841f646d3f95c0001269a7406d920a5259d376148bce3a"
+checksum = "d7c5ad7dd3723385e026a9593ac02187dd29a2d832edc44bf0284da28660e465"
 dependencies = [
  "anyhow",
  "binstring",
@@ -1594,7 +1596,7 @@ dependencies = [
  "p256",
  "p384",
  "rand",
- "rsa 0.7.2",
+ "rsa 0.8.2",
  "serde",
  "serde_json",
  "spki 0.6.0",
@@ -1613,7 +1615,7 @@ dependencies = [
  "elliptic-curve",
  "once_cell",
  "sha2",
- "signature 2.2.0",
+ "signature",
 ]
 
 [[package]]
@@ -2504,9 +2506,9 @@ dependencies = [
 
 [[package]]
 name = "rsa"
-version = "0.7.2"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "094052d5470cbcef561cb848a7209968c9f12dfa6d668f4bca048ac5de51099c"
+checksum = "55a77d189da1fee555ad95b7e50e7457d91c0e089ec68ca69ad2989413bbdab4"
 dependencies = [
  "byteorder",
  "digest",
@@ -2517,8 +2519,7 @@ dependencies = [
  "pkcs1 0.4.1",
  "pkcs8 0.9.0",
  "rand_core",
- "signature 1.6.4",
- "smallvec",
+ "signature",
  "subtle",
  "zeroize",
 ]
@@ -2537,7 +2538,7 @@ dependencies = [
  "pkcs1 0.7.5",
  "pkcs8 0.10.2",
  "rand_core",
- "signature 2.2.0",
+ "signature",
  "spki 0.7.2",
  "subtle",
  "zeroize",
@@ -2798,16 +2799,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8229b473baa5980ac72ef434c4415e70c4b5e71b423043adb4ba059f89c99a1"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "signature"
-version = "1.6.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74233d3b3b2f6d4b006dc19dee745e73e2a6bfb6f93607cd3b02bd5b00797d7c"
-dependencies = [
- "digest",
- "rand_core",
 ]
 
 [[package]]
