@@ -1903,14 +1903,14 @@ dependencies = [
 
 [[package]]
 name = "multer"
-version = "2.1.0"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01acbdc23469fd8fe07ab135923371d5f5a422fbf9c522158677c8eb15bc51c2"
+checksum = "a15d522be0a9c3e46fd2632e272d178f56387bdb5c9fbb3a36c649062e9b5219"
 dependencies = [
  "bytes",
  "encoding_rs",
  "futures-util",
- "http 0.2.11",
+ "http 1.0.0",
  "httparse",
  "log",
  "memchr",
@@ -2271,25 +2271,28 @@ checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
 
 [[package]]
 name = "poem"
-version = "1.3.59"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "504774c97b0744c1ee108a37e5a65a9745a4725c4c06277521dabc28eb53a904"
+checksum = "38a712ff53e257d60d3d22936c51cafa606552129d55539c8a400de44eff676d"
 dependencies = [
+ "anyhow",
  "async-trait",
  "bytes",
  "chrono",
  "cookie",
  "futures-util",
- "headers 0.3.9",
- "http 0.2.11",
- "hyper 0.14.27",
+ "headers 0.4.0",
+ "http 1.0.0",
+ "http-body-util",
+ "hyper 1.1.0",
+ "hyper-util",
  "mime",
  "multer",
  "nix 0.27.1",
  "parking_lot",
  "percent-encoding",
  "pin-project-lite",
- "poem-derive 1.3.59",
+ "poem-derive",
  "quick-xml",
  "regex",
  "rfc7239",
@@ -2298,6 +2301,7 @@ dependencies = [
  "serde_urlencoded",
  "serde_yaml",
  "smallvec",
+ "sync_wrapper",
  "tempfile",
  "thiserror",
  "time",
@@ -2306,53 +2310,6 @@ dependencies = [
  "tokio-util",
  "tracing",
  "wildmatch",
-]
-
-[[package]]
-name = "poem"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38a712ff53e257d60d3d22936c51cafa606552129d55539c8a400de44eff676d"
-dependencies = [
- "anyhow",
- "async-trait",
- "bytes",
- "futures-util",
- "headers 0.4.0",
- "http 1.0.0",
- "http-body-util",
- "hyper 1.1.0",
- "hyper-util",
- "mime",
- "nix 0.27.1",
- "parking_lot",
- "percent-encoding",
- "pin-project-lite",
- "poem-derive 2.0.0",
- "regex",
- "rfc7239",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "smallvec",
- "sync_wrapper",
- "thiserror",
- "tokio",
- "tokio-util",
- "tracing",
- "wildmatch",
-]
-
-[[package]]
-name = "poem-derive"
-version = "1.3.59"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42ddcf4680d8d867e1e375116203846acb088483fa2070244f90589f458bbb31"
-dependencies = [
- "proc-macro-crate",
- "proc-macro2",
- "quote",
- "syn 2.0.46",
 ]
 
 [[package]]
@@ -2369,9 +2326,9 @@ dependencies = [
 
 [[package]]
 name = "poem-openapi"
-version = "3.0.6"
+version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "664a0fd36922aebf32fa448378dd8b83317779794e42ecbe02796b9eca902728"
+checksum = "3c7c12d9e19a0cda311f46515b819eb1e8425a4bee004540aff7b9c587e02b82"
 dependencies = [
  "base64 0.21.5",
  "bytes",
@@ -2381,7 +2338,7 @@ dependencies = [
  "indexmap",
  "mime",
  "num-traits",
- "poem 1.3.59",
+ "poem",
  "poem-openapi-derive",
  "quick-xml",
  "regex",
@@ -2395,12 +2352,12 @@ dependencies = [
 
 [[package]]
 name = "poem-openapi-derive"
-version = "3.0.6"
+version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d48a05bc6ae5e61140ed67a4ab44d62d82cf1d6520021aa9fd240ac1c6b8d97e"
+checksum = "d5d485fb9cc4ca9a8364beedd4ea81294b1f028d459c8fd7bb352e38f87f8ffa"
 dependencies = [
  "darling",
- "http 0.2.11",
+ "http 1.0.0",
  "indexmap",
  "mime",
  "proc-macro-crate",
@@ -2551,7 +2508,7 @@ dependencies = [
  "futures",
  "humantime-serde",
  "jwt-simple",
- "poem 2.0.0",
+ "poem",
  "poem-openapi",
  "regex",
  "secrecy",
