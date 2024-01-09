@@ -11,7 +11,7 @@ fmt:
 
 fmt-check:
 	@echo "RUSTUP_TOOLCHAIN is ${RUSTUP_TOOLCHAIN:-not set}"
-	cargo fmt --check
+	cargo +nightly fmt --check
 
 lint:
 	@echo "RUSTUP_TOOLCHAIN is ${RUSTUP_TOOLCHAIN:-not set}"
