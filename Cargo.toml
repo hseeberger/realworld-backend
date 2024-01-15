@@ -38,7 +38,7 @@ uuid               = { version = "1.6", features = [ "serde", "v7" ] }
 axum              = { version = "0.6", features = [ "headers", "http2", "json", "macros" ], optional = true }
 const_format      = { version = "0.2" }
 tower             = { version = "0.4", optional = true }
-tower-http        = { version = "0.4", features = [ "cors", "trace" ], optional = true }
+tower-http        = { version = "0.5", features = [ "cors", "trace" ], optional = true }
 utoipa            = { version = "4.1", features = [ "axum_extras" ], optional = true }
 utoipa-swagger-ui = { version = "4.0", features = [ "axum" ], optional = true }
 # poem-openapi
