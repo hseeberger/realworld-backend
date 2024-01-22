@@ -23,7 +23,7 @@ futures         = { version = "0.3" }
 humantime-serde = { version = "1.1" }
 # Revisit default-features/features once the issue with the boring dependency has been solved!
 jwt-simple         = { version = "0.12", default-features = false, features = [ "pure-rust" ] }
-regex              = { version = "1.9" }
+regex              = { version = "1.10" }
 secrecy            = { version = "0.8", features = [ "serde" ] }
 serde              = { version = "1.0", features = [ "derive" ] }
 serde_json         = { version = "1.0" }
