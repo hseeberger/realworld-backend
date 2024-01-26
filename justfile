@@ -26,8 +26,7 @@ run framework="axum" port="8080":
 	RUST_LOG=realworld_backend=debug,info \
 		CONFIG_OVERLAYS=dev \
 		APP__API__PORT={{port}} \
-		cargo run --features {{framework}} \
-		| jq
+		cargo run --features {{framework}}
 
 docker framework="axum" tag="latest":
 	[ "{{framework}}" = "axum" ] || [ "{{framework}}" = "poem-openapi" ]
