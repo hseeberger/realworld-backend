@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::Result;
 use serde::Deserialize;
-use std::{net::IpAddr, time::Duration};
+use std::net::IpAddr;
 
 #[cfg(feature = "axum")]
 pub mod axum;
@@ -17,8 +17,6 @@ pub mod poem_openapi;
 pub struct Config {
     addr: IpAddr,
     port: u16,
-    #[serde(with = "humantime_serde")]
-    shutdown_timeout: Option<Duration>,
 }
 
 #[allow(unused)]

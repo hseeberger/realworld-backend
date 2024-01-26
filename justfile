@@ -17,7 +17,7 @@ test:
 	cargo test --all-features
 
 fix:
-	cargo fix --allow-dirty --allow-staged
+	cargo fix --allow-dirty --allow-staged --all-features
 
 all: check fmt lint test
 

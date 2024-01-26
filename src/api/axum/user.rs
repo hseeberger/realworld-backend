@@ -11,9 +11,12 @@ use crate::{
 };
 use axum::{
     extract::State,
-    headers::{authorization::Bearer, Authorization},
     routing::{get, post},
-    Json, Router, TypedHeader,
+    Json, Router,
+};
+use axum_extra::{
+    headers::{authorization::Bearer, Authorization},
+    TypedHeader,
 };
 use const_format::concatcp;
 use frunk::{hlist_pat, validated::IntoValidated};
