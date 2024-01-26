@@ -15,26 +15,44 @@ use std::{
     fmt::{self, Debug, Display},
     ops::Deref,
     str::FromStr,
-    sync::LazyLock,
+    sync::OnceLock,
 };
 use thiserror::Error;
 use tracing::{debug, info};
 use uuid::Uuid;
 
-static PASSWORD_ALPHA: LazyLock<Regex> = LazyLock::new(|| {
-    let password = r"^.*[A-Za-z].*$";
-    Regex::new(password).expect("create regex for numeric password")
-});
+// TODO Use `LazyLock` once stabilized!
+#[allow(non_snake_case)]
+fn PASSWORD_ALPHA() -> &'static Regex {
+    static PASSWORD_ALPHA: OnceLock<Regex> = OnceLock::new();
 
-static PASSWORD_NUMERIC: LazyLock<Regex> = LazyLock::new(|| {
-    let password = r"^.*[0-9].*$";
-    Regex::new(password).expect("create regex for numeric password")
-});
+    PASSWORD_ALPHA.get_or_init(|| {
+        let password = r"^.*[A-Za-z].*$";
+        Regex::new(password).expect("create regex for alpha password")
+    })
+}
 
-static PASSWORD_SPECIAL: LazyLock<Regex> = LazyLock::new(|| {
-    let password = r"^.*[@#$%^&*\-_+=?].*$";
-    Regex::new(password).expect("create regex for numeric password")
-});
+// TODO Use `LazyLock` once stabilized!
+#[allow(non_snake_case)]
+fn PASSWORD_NUMERIC() -> &'static Regex {
+    static PASSWORD_NUMERIC: OnceLock<Regex> = OnceLock::new();
+
+    PASSWORD_NUMERIC.get_or_init(|| {
+        let password = r"^.*[0-9].*$";
+        Regex::new(password).expect("create regex for numeric password")
+    })
+}
+
+// TODO Use `LazyLock` once stabilized!
+#[allow(non_snake_case)]
+fn PASSWORD_SPECIAL() -> &'static Regex {
+    static PASSWORD_SPECIAL: OnceLock<Regex> = OnceLock::new();
+
+    PASSWORD_SPECIAL.get_or_init(|| {
+        let password = r"^.*[@#$%^&*\-_+=?].*$";
+        Regex::new(password).expect("create regex for special password")
+    })
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct User {
@@ -218,9 +236,9 @@ impl TryFrom<SecretString> for Password {
     fn try_from(secret_string: SecretString) -> Result<Self, Self::Error> {
         let s = secret_string.expose_secret();
         if s.len() >= 8
-            && PASSWORD_ALPHA.is_match(s)
-            && PASSWORD_NUMERIC.is_match(s)
-            && PASSWORD_SPECIAL.is_match(s)
+            && PASSWORD_ALPHA().is_match(s)
+            && PASSWORD_NUMERIC().is_match(s)
+            && PASSWORD_SPECIAL().is_match(s)
         {
             Ok(Self(secret_string))
         } else {
@@ -453,7 +471,7 @@ pub enum LoginError<E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::assert_matches::assert_matches;
+    use assert_matches::assert_matches;
 
     #[test]
     fn test_username_try_from() {
