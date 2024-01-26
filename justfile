@@ -1,14 +1,14 @@
 set shell := ["bash", "-uc"]
 
 check:
-	cargo check --features axum --tests
-	cargo check --features poem-openapi --tests
+	cargo check --features axum
+	cargo check --features poem-openapi
 
-fmt:
-	cargo fmt
+fmt toolchain="+nightly":
+	cargo {{toolchain}} fmt
 
-fmt-check:
-	cargo fmt --check
+fmt-check toolchain="+nightly":
+	cargo {{toolchain}} fmt --check
 
 lint:
 	cargo clippy --all-features --no-deps -- -D warnings

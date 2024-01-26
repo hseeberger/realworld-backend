@@ -198,7 +198,7 @@ mod tests {
     use super::*;
     use anyhow::{anyhow, Result};
     use argon2::{password_hash::Encoding, PasswordHash};
-    use std::assert_matches::assert_matches;
+    use assert_matches::assert_matches;
 
     #[tokio::test]
     async fn test_add_user() -> Result<()> {
