@@ -7,12 +7,10 @@ use crate::{
     infra::token_factory::TokenFactory,
 };
 use anyhow::{Context, Result};
-use futures::FutureExt;
 use poem::{http::Method, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
 use poem_openapi::{Object, OpenApi, OpenApiService, Tags};
 use std::fmt::Display;
 use thiserror::Error;
-use tokio::signal::unix::{signal, SignalKind};
 
 pub async fn serve<U>(
     config: Config,
@@ -22,11 +20,7 @@ pub async fn serve<U>(
 where
     U: UserRepository,
 {
-    let Config {
-        addr,
-        port,
-        shutdown_timeout,
-    } = config;
+    let Config { addr, port } = config;
 
     let user_api = UserApi::new(user_service, token_factory);
     let api = OpenApiService::new((Ready, user_api), "realworld-backend", "0.1");
@@ -44,14 +38,7 @@ where
         );
 
     Server::new(TcpListener::bind((addr, port)))
-        .run_with_graceful_shutdown(
-            app,
-            signal(SignalKind::terminate())
-                .expect("install SIGTERM handler")
-                .recv()
-                .map(|_| ()),
-            shutdown_timeout,
-        )
+        .run(app)
         .await
         .context("run server")
 }

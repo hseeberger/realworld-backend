@@ -7,22 +7,19 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use axum::{
-    http::{Method, StatusCode},
+    http::StatusCode,
     response::{IntoResponse, Response},
     routing::get,
-    Json, Router, Server,
+    Json, Router,
 };
 use serde::Serialize;
-use std::{error::Error as StdError, sync::Arc, time::Duration};
+use std::{error::Error as StdError, sync::Arc};
 use tokio::{
+    net::TcpListener,
     signal::unix::{signal, SignalKind},
-    time,
 };
 use tower::ServiceBuilder;
-use tower_http::{
-    cors::{self, CorsLayer},
-    trace::TraceLayer,
-};
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use utoipa::{
     openapi::{
         self,
@@ -52,11 +49,7 @@ pub async fn serve<U>(
 where
     U: UserRepository,
 {
-    let Config {
-        addr,
-        port,
-        shutdown_timeout,
-    } = config;
+    let Config { addr, port } = config;
 
     let app_state = Arc::new(AppState {
         user_service,
@@ -74,20 +67,15 @@ where
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
-                .layer(
-                    CorsLayer::new()
-                        .allow_methods(vec![Method::GET, Method::POST])
-                        .allow_headers(cors::Any)
-                        .allow_origin(cors::Any),
-                ),
+                .layer(CorsLayer::permissive()),
         )
         .with_state(app_state);
 
-    Server::bind(&(addr, port).into())
-        .serve(app.into_make_service())
-        .with_graceful_shutdown(shutdown_signal(shutdown_timeout))
+    let listener = TcpListener::bind((addr, port))
         .await
-        .context("run server")
+        .context("bind TcpListener")?;
+    let server = axum::serve(listener, app).with_graceful_shutdown(shutdown_signal());
+    server.await.context("run server")
 }
 
 struct AppState<U> {
@@ -157,12 +145,9 @@ async fn ready() -> impl IntoResponse {
     StatusCode::OK
 }
 
-async fn shutdown_signal(shutdown_timeout: Option<Duration>) {
+async fn shutdown_signal() {
     signal(SignalKind::terminate())
         .expect("install SIGTERM handler")
         .recv()
         .await;
-    if let Some(shutdown_timeout) = shutdown_timeout {
-        time::sleep(shutdown_timeout).await;
-    }
 }
