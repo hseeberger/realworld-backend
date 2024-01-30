@@ -31,7 +31,7 @@ spec:
     spec:
       containers:
         - name: realworld-backend
-          image: hseeberger/realworld-backend-axum:latest
+          image: hseeberger/realworld-backend:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
