@@ -1,4 +1,4 @@
-name: release-axum
+name: release
 
 on:
   push:
@@ -142,17 +142,17 @@ jobs:
     needs: [lint, test]
     steps:
       - name: Docker metadata
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v5s
         id: meta
         with:
-          images: hseeberger/realworld-backend-axum
+          images: hseeberger/realworld-backend
           tags: type=semver,pattern={{version}}
 
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN_AXUM }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Docker build and push
         uses: docker/build-push-action@v5
@@ -160,4 +160,3 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           push: true
-          build-args: FRAMEWORK=axum

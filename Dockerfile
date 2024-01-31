@@ -1,15 +1,15 @@
 ARG RUST_VERSION=1.74.0
 
-FROM rust:${RUST_VERSION}-slim-bookworm AS builder
-ARG FRAMEWORK
-RUN [ "${FRAMEWORK}" = "axum" ] || [ "${FRAMEWORK}" = "poem-openapi" ]
-WORKDIR /app
+FROM rust:$RUST_VERSION-bookworm AS builder
+ARG PROFILE=release
+WORKDIR /build
 COPY . .
 RUN \
   --mount=type=cache,target=/app/target/ \
   --mount=type=cache,target=/usr/local/cargo/registry/ \
-  cargo build --release --features ${FRAMEWORK} && \
-  cp ./target/release/realworld-backend /app
+  cargo build --profile $PROFILE && \
+  dir=release && if [ $PROFILE = dev ]; then dir=debug; fi && \
+  cp ./target/$dir/realworld-backend /
 
 FROM debian:bookworm-slim AS final
 RUN adduser \
@@ -20,9 +20,9 @@ RUN adduser \
   --no-create-home \
   --uid "10001" \
   appuser
-COPY --from=builder /app/realworld-backend /usr/local/bin
+COPY --from=builder /realworld-backend /usr/local/bin
 RUN chown appuser /usr/local/bin/realworld-backend
-COPY --from=builder /app/config /opt/realworld-backend/config
+COPY --from=builder /build /opt/realworld-backend/config
 RUN chown -R appuser /opt/realworld-backend
 USER appuser
 ENV RUST_LOG="realworld_backend=debug,info"

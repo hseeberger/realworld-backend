@@ -3,5 +3,5 @@ kind: Kustomization
 resources:
   - realworld-backend.yaml
 images:
-  - name: hseeberger/realworld-backend-axum
+  - name: hseeberger/realworld-backend
     newTag: $VERSION

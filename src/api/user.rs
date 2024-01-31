@@ -1,5 +1,5 @@
 use crate::{
-    api::axum::{AppState, Error},
+    api::{AppState, Error},
     domain::{
         self,
         user::{
@@ -18,18 +18,11 @@ use axum_extra::{
     headers::{authorization::Bearer, Authorization},
     TypedHeader,
 };
-use const_format::concatcp;
 use frunk::{hlist_pat, validated::IntoValidated};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::sync::Arc;
 use tracing::{error, warn};
 use utoipa::{OpenApi, ToSchema};
-
-const USER: &str = "/user";
-const USERS: &str = "/users";
-const USERS_LOGIN: &str = concatcp!(USERS, "/login");
-
-const TAG: &str = "user"; // TODO: not yet possible to be used for `openapi::tags::name`!
 
 #[derive(Debug, OpenApi)]
 #[openapi(
@@ -60,20 +53,14 @@ const TAG: &str = "user"; // TODO: not yet possible to be used for `openapi::tag
 )]
 pub struct ApiDoc;
 
-pub fn user_routes<U>() -> Router<Arc<AppState<U>>>
-where
-    U: UserRepository,
-{
-    Router::new().route(USER, get(get_current_user).put(update_current_user))
-}
-
-pub fn users_routes<U>() -> Router<Arc<AppState<U>>>
+pub fn routes<U>() -> Router<Arc<AppState<U>>>
 where
     U: UserRepository,
 {
     Router::new()
-        .route(USERS, post(register_user))
-        .route(USERS_LOGIN, post(login_user))
+        .route("/user", get(get_current_user).put(update_current_user))
+        .route("/user/login", post(login_user))
+        .route("/users", post(register_user))
 }
 
 /// User.
@@ -195,14 +182,14 @@ struct Password(SecretString);
 /// Get the currently logged-in user.
 #[utoipa::path(
     get,
-    path = USER,
+    path = "/user",
     security(("bearer" = [])),
     responses(
         (status = 200, description = "Currently logged-in user.", body = UserResponse),
         (status = 401, description = "Unauthorized."),
         (status = 404, description = "Not found."),
     ),
-    tag = TAG
+    tag = "user"
 )]
 async fn get_current_user<U>(
     State(app_state): State<Arc<AppState<U>>>,
@@ -248,7 +235,7 @@ where
 /// Update the currently logged-in user.
 #[utoipa::path(
     put,
-    path = USER,
+    path = "/user",
     security(("bearer" = [])),
     responses(
         (status = 200, description = "Currently logged-in user.", body = UserResponse),
@@ -257,7 +244,7 @@ where
         (status = 409, description = "Conflicting user data."),
         (status = 422, description = "Invalid user data.", body = UnprocessableEntity),
     ),
-    tag = TAG
+    tag = "user"
 )]
 async fn update_current_user<U>(
     State(app_state): State<Arc<AppState<U>>>,
@@ -342,13 +329,13 @@ where
 /// Register a new user.
 #[utoipa::path(
     post,
-    path = USERS,
+    path = "/users",
     responses(
         (status = 201, description = "Registered user.", body = UserResponse),
         (status = 409, description = "Conflicting user data.", body = Conflict),
         (status = 422, description = "Invalid user data.", body = UnprocessableEntity),
     ),
-    tag = TAG
+    tag = "user"
 )]
 async fn register_user<U>(
     State(app_state): State<Arc<AppState<U>>>,
@@ -406,14 +393,14 @@ where
 /// Login for an existing user.
 #[utoipa::path(
     post,
-    path = USERS_LOGIN,
+    path = "/user/login",
     responses(
         (status = 201, description = "Registered user.", body = UserResponse),
         (status = 401, description = "Unauthorized."),
         (status = 404, description = "User not found."),
         (status = 422, description = "Invalid credentials.", body = UnprocessableEntity),
     ),
-    tag = TAG
+    tag = "user"
 )]
 async fn login_user<U>(
     State(app_state): State<Arc<AppState<U>>>,
