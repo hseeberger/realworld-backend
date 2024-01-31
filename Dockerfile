@@ -5,7 +5,7 @@ ARG PROFILE=release
 WORKDIR /build
 COPY . .
 RUN \
-  --mount=type=cache,target=/app/target/ \
+  --mount=type=cache,target=/build/target/ \
   --mount=type=cache,target=/usr/local/cargo/registry/ \
   cargo build --profile $PROFILE && \
   dir=release && if [ $PROFILE = dev ]; then dir=debug; fi && \
