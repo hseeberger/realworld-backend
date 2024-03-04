@@ -17,7 +17,7 @@ anyhow          = { version = "1.0", features = [ "backtrace" ] }
 argon2          = { version = "0.5" }
 axum            = { version = "0.7", features = [ "http2", "json" ] }
 axum-extra      = { version = "0.9", features = [ "typed-header" ] }
-base64          = { version = "0.21" }
+base64          = { version = "0.22" }
 configured      = { version = "0.7" }
 email_address   = { version = "0.2" }
 frunk           = { version = "0.4" }
