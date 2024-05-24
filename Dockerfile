@@ -1,4 +1,4 @@
-ARG RUST_VERSION=1.74.0
+ARG RUST_VERSION=1.78.0
 
 FROM rust:$RUST_VERSION-bookworm AS builder
 ARG PROFILE=release
