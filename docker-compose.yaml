@@ -1,0 +1,35 @@
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.122.1
+    restart: always
+    command: 
+      - --config
+      - /etc/otel-collector-config.yaml
+    environment:
+      GRAFANA_OTLP_USERNAME: $GRAFANA_OTLP_USERNAME
+      GRAFANA_OTLP_PASSWORD: $GRAFANA_OTLP_PASSWORD
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+      - ./target/filestorage:/var/lib/otelcol/file_storage
+      - ./target:/var/log
+    ports:
+      - 4317:4317 # OTLP gRPC receiver
+
+  postgres:
+    image: postgres:17.1-alpine
+    restart: "always"
+    ports:
+      - 5432:5432
+    volumes:
+      - ./target/data/postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: realworld
+      POSTGRES_DB: realworld
+      POSTGRES_PASSWORD: $APP__INFRA__POOL__PASSWORD
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U indexer]
+      interval: 5s
+      timeout: 2s
+      retries: 2
+    security_opt:
+      - no-new-privileges:true

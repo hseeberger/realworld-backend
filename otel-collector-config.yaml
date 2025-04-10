@@ -1,0 +1,54 @@
+extensions:
+  basicauth/grafana-otlp:
+    client_auth:
+      username: ${env:GRAFANA_OTLP_USERNAME}
+      password: ${env:GRAFANA_OTLP_PASSWORD}
+
+  file_storage/filelogreceiver:
+
+receivers:
+  filelog:
+    include:
+      - /var/log/*.log
+    start_at: end
+    storage: file_storage/filelogreceiver
+
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+exporters:
+  otlphttp/grafana-otlp:
+    endpoint: https://otlp-gateway-prod-eu-west-0.grafana.net/otlp
+    auth:
+      authenticator: basicauth/grafana-otlp
+
+  debug:
+    verbosity: detailed
+
+processors:
+  batch:
+
+service:
+  extensions:
+    - basicauth/grafana-otlp
+    - file_storage/filelogreceiver
+
+  pipelines:
+    logs:
+      receivers:
+        - filelog
+      processors:
+        - batch
+      exporters:
+        - otlphttp/grafana-otlp
+        - debug
+
+    traces:
+      receivers:
+        - otlp
+      processors:
+        - batch
+      exporters:
+        - otlphttp/grafana-otlp

@@ -1,0 +1,14 @@
+infra:
+  api:
+    address: "0.0.0.0"
+    port: 8080
+    tokens:
+      token_expiry: 1h
+      time_tolerance: 1m
+
+  pool:
+    host: localhost
+    port: 5432
+    dbname: realworld
+    user: realworld
+    sslmode: prefer

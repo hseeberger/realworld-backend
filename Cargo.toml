@@ -1,0 +1,50 @@
+[package]
+name          = "realworld-backend"
+version       = "0.0.1"
+description   = "realworld-backend"
+edition       = "2024"
+authors       = [ "Heiko Seeberger <git@heikoseeberger.de>" ]
+license-file  = "LICENSE"
+readme        = "README.md"
+homepage      = "https://github.com/hseeberger/realworld-backend"
+repository    = "https://github.com/hseeberger/realworld-backend"
+documentation = "https://github.com/hseeberger/realworld-backend"
+
+[dependencies]
+anyhow                 = { version = "1.0" }
+api-version            = { version = "0.3" }
+argon2                 = { version = "0.5" }
+axum                   = { version = "0.8", features = [ "http2", "json" ] }
+axum-extra             = { version = "0.10", features = [ "typed-header" ] }
+derive_more            = { version = "2.0", features = [ "debug" ] }
+error-ext              = { version = "0.4", features = [ "axum" ] }
+fastrace               = { version = "0.7", features = [ "enable" ] }
+fastrace-axum          = { version = "0.1" }
+fastrace-opentelemetry = { version = "0.10" }
+figment                = { version = "0.10", features = [ "env", "yaml" ] }
+humantime-serde        = { version = "1.1" }
+indoc                  = { version = "2.0" }
+jwt-simple             = { version = "0.12" }
+log                    = { version = "0.4", features = [ "kv_std" ] }
+logforth               = { version = "0.23", features = [ "fastrace", "json" ] }
+nutype                 = { version = "0.6", features = [ "regex", "serde" ] }
+opentelemetry          = { version = "0.29" }
+opentelemetry_sdk      = { version = "0.29" }
+opentelemetry-otlp     = { version = "0.29", features = [ "grpc-tonic" ] }
+regex                  = { version = "1.11" }
+secrecy                = { version = "0.10", features = [ "serde" ] }
+serde                  = { version = "1.0", features = [ "derive" ] }
+serde_with             = { version = "3.12", features = [ "base64" ] }
+sqlx                   = { version = "0.8", features = [ "runtime-tokio", "postgres", "uuid" ] }
+thiserror              = { version = "2.0" }
+tokio                  = { version = "1", features = [ "macros", "rt-multi-thread", "signal" ] }
+tower                  = { version = "0.5" }
+tower-http             = { version = "0.6", features = [ "cors" ] }
+trait-variant          = { version = "0.1" }
+uuid                   = { version = "1.16", features = [ "serde", "v7" ] }
+
+[dev-dependencies]
+assert_matches         = { version = "1.5" }
+proptest               = { version = "1.6" }
+testcontainers         = { version = "0.23" }
+testcontainers-modules = { version = "0.11", features = [ "postgres" ] }
