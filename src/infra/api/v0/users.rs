@@ -20,6 +20,7 @@ use axum_extra::{
     headers::{Authorization, authorization::Bearer},
 };
 use error_ext::{StdErrorExt, axum::Error};
+use fastrace::trace;
 use log::{error, info};
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
@@ -82,6 +83,7 @@ struct UserResponse {
     user: User,
 }
 
+#[trace(properties = { "request": "{request:?}" })]
 async fn register_user<R>(
     State(app_state): State<AppState<R>>,
     Json(request): Json<RegisterUserRequest>,
@@ -121,6 +123,7 @@ where
     Ok((StatusCode::CREATED, Json(response)))
 }
 
+#[trace(properties = { "request": "{request:?}" })]
 async fn login_user<R>(
     State(app_state): State<AppState<R>>,
     Json(request): Json<LoginUserRequest>,
@@ -165,6 +168,7 @@ where
     Ok(Json(response))
 }
 
+#[trace]
 async fn get_current_user<R>(
     State(app_state): State<AppState<R>>,
     bearer: Option<TypedHeader<Authorization<Bearer>>>,
@@ -202,6 +206,7 @@ where
     Ok(Json(response))
 }
 
+#[trace(properties = { "request": "{request:?}" })]
 async fn update_current_user<R>(
     State(app_state): State<AppState<R>>,
     bearer: Option<TypedHeader<Authorization<Bearer>>>,
