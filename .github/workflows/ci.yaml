@@ -149,6 +149,9 @@ jobs:
         run: |
           rustup override set ${{needs.toolchain.outputs.toolchain}}
           just test
+        env:
+          APP__INFRA__POOL__PASSWORD: ${{ secrets.APP__INFRA__POOL__PASSWORD }}
+          APP__INFRA__API__TOKENS__KEY: ${{ secrets.APP__INFRA__API__TOKENS__KEY }}
 
   doc:
     runs-on: ubuntu-latest
@@ -171,7 +174,7 @@ jobs:
       - name: just doc
         run: |
           rustup override set ${{needs.toolchain.outputs.nightly_toolchain}}
-          just doc ''
+          just doc
 
   dependabot:
     runs-on: ubuntu-latest
