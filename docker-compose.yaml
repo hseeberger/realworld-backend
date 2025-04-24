@@ -27,7 +27,7 @@ services:
       POSTGRES_DB: realworld
       POSTGRES_PASSWORD: $APP__INFRA__POOL__PASSWORD
     healthcheck:
-      test: [CMD-SHELL, pg_isready -U indexer]
+      test: [CMD-SHELL, pg_isready -U realworld]
       interval: 5s
       timeout: 2s
       retries: 2
