@@ -52,3 +52,4 @@ service:
         - batch
       exporters:
         - otlphttp/grafana-otlp
+        - debug
