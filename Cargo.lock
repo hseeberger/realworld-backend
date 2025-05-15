@@ -1933,9 +1933,9 @@ dependencies = [
 
 [[package]]
 name = "logforth"
-version = "0.24.0"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7d12336d4771854b6fdbf75bab8257e62d4221d1f9d7187fc254b29aa3bd23b"
+checksum = "6ab136b92556d7f0691c85ee12f2cba40f33615d2fc350f7d7504611d8df4828"
 dependencies = [
  "anyhow",
  "env_filter",
