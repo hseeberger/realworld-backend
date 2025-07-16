@@ -20,17 +20,17 @@ derive_more            = { version = "2.0", features = [ "debug" ] }
 error-ext              = { version = "0.4", features = [ "axum" ] }
 fastrace               = { version = "0.7", features = [ "enable" ] }
 fastrace-axum          = { version = "0.1" }
-fastrace-opentelemetry = { version = "0.10" }
+fastrace-opentelemetry = { version = "0.12" }
 figment                = { version = "0.10", features = [ "env", "yaml" ] }
 humantime-serde        = { version = "1.1" }
 indoc                  = { version = "2.0" }
-jwt-simple             = { version = "0.12" }
+jwt-simple             = { version = "0.12", features = [ "pure-rust" ], default-features = false }
 log                    = { version = "0.4", features = [ "kv_std" ] }
-logforth               = { version = "0.25", features = [ "fastrace", "json" ] }
+logforth               = { version = "0.26", features = [ "append-fastrace", "diagnostic-fastrace", "layout-json" ] }
 nutype                 = { version = "0.6", features = [ "regex", "serde" ] }
-opentelemetry          = { version = "0.29" }
-opentelemetry_sdk      = { version = "0.29" }
-opentelemetry-otlp     = { version = "0.29", features = [ "grpc-tonic" ] }
+opentelemetry          = { version = "0.30" }
+opentelemetry_sdk      = { version = "0.30" }
+opentelemetry-otlp     = { version = "0.30", features = [ "grpc-tonic" ] }
 regex                  = { version = "1.11" }
 secrecy                = { version = "0.10", features = [ "serde" ] }
 serde                  = { version = "1.0", features = [ "derive" ] }
