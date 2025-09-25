@@ -29,7 +29,7 @@ log                    = { version = "0.4", features = [ "kv_std" ] }
 logforth               = { version = "0.27", features = [ "append-fastrace", "diagnostic-fastrace", "layout-json" ] }
 nutype                 = { version = "0.6", features = [ "regex", "serde" ] }
 opentelemetry          = { version = "0.30" }
-opentelemetry_sdk      = { version = "0.30" }
+opentelemetry_sdk      = { version = "0.31" }
 opentelemetry-otlp     = { version = "0.30", features = [ "grpc-tonic" ] }
 regex                  = { version = "1.11" }
 secrecy                = { version = "0.10", features = [ "serde" ] }
