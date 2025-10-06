@@ -869,9 +869,9 @@ dependencies = [
 
 [[package]]
 name = "fastrace-axum"
-version = "0.1.2"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2fb476045742cd6cd3d16d1201adb8229a0c38d6128b429297b2bac12b22e4e"
+checksum = "ab4f5f35517f48f18c9f89170c25b356539e4f7ca983db9831e9575c052df844"
 dependencies = [
  "axum",
  "fastrace",
