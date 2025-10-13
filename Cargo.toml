@@ -31,7 +31,7 @@ nutype                 = { version = "0.6", features = [ "regex", "serde" ] }
 opentelemetry          = { version = "0.30" }
 opentelemetry_sdk      = { version = "0.30" }
 opentelemetry-otlp     = { version = "0.30", features = [ "grpc-tonic" ] }
-regex                  = { version = "1.11" }
+regex                  = { version = "1.12" }
 secrecy                = { version = "0.10", features = [ "serde" ] }
 serde                  = { version = "1.0", features = [ "derive" ] }
 serde_with             = { version = "3.15", features = [ "base64" ] }
