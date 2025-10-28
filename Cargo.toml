@@ -45,6 +45,6 @@ uuid                   = { version = "1.18", features = [ "serde", "v7" ] }
 
 [dev-dependencies]
 assert_matches         = { version = "1.5" }
-proptest               = { version = "1.8" }
+proptest               = { version = "1.9" }
 testcontainers         = { version = "0.25" }
 testcontainers-modules = { version = "0.13", features = [ "postgres" ] }
